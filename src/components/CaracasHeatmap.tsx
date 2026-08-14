@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { MapPin, TrendingUp } from 'lucide-react';
 import { CARACAS_MUNICIPALITIES } from '../data';
 import type { CaracasMunicipality } from '../types';
@@ -11,11 +13,10 @@ export function CaracasHeatmap() {
 
   const colorFor = (val: number) => {
     const t = val / max;
-    // indigo -> violet gradient by intensity
-    if (t > 0.8) return { fill: '#6366f1', stroke: '#818cf8' };
-    if (t > 0.55) return { fill: '#4f46e5', stroke: '#6366f1' };
-    if (t > 0.35) return { fill: '#4338ca', stroke: '#4f46e5' };
-    return { fill: '#312e81', stroke: '#4338ca' };
+    if (t > 0.8) return '#b5abfc';
+    if (t > 0.55) return '#968ae0';
+    if (t > 0.35) return '#796cbf';
+    return '#5d5294';
   };
 
   return (
@@ -26,7 +27,7 @@ export function CaracasHeatmap() {
             <MapPin size={16} />
           </div>
           <div>
-            <h3 className="font-display text-sm font-semibold text-white">
+            <h3 className="font-display text-sm font-medium text-metal-100">
               Distribución de Solicitudes · Caracas
             </h3>
             <p className="text-xs text-slate-500">Municipios · calor por volumen</p>
@@ -39,63 +40,28 @@ export function CaracasHeatmap() {
       </div>
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-5">
-        {/* SVG map */}
-        <div className="relative rounded-xl bg-ink-900/40 bg-grid-faint bg-grid p-3 overflow-hidden">
-          <svg viewBox="0 0 500 300" className="w-full h-auto">
-            <defs>
-              <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-            <circle cx="250" cy="150" r="130" fill="url(#glow)" />
+        <div className="relative h-[280px] sm:h-[340px] rounded-xl overflow-hidden border border-tint/5 [&_.leaflet-tile-pane]:invert [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:saturate-75 [&_.leaflet-control-attribution]:!bg-ink-900/70 [&_.leaflet-control-attribution]:!text-slate-500">
+          <MapContainer center={[10.475, -66.865]} zoom={11} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {CARACAS_MUNICIPALITIES.map((m) => {
-              const c = colorFor(m.applications);
               const active = hovered?.id === m.id;
+              const color = colorFor(m.applications);
               return (
-                <motion.path
+                <CircleMarker
                   key={m.id}
-                  d={m.path}
-                  fill={c.fill}
-                  stroke={c.stroke}
-                  strokeWidth={active ? 2.5 : 1.2}
-                  style={{ cursor: 'pointer' }}
-                  initial={false}
-                  animate={{
-                    opacity: hovered && !active ? 0.45 : 1,
-                    scale: active ? 1.03 : 1,
-                  }}
-                  transition={{ duration: 0.2 }}
-                  onMouseEnter={() => setHovered(m)}
-                  onMouseLeave={() => setHovered(null)}
-                />
-              );
-            })}
-            {CARACAS_MUNICIPALITIES.map((m) => {
-              const cx = m.id === 'libertador' ? 120
-                : m.id === 'chacao' ? 265
-                : m.id === 'baruta' ? 290
-                : m.id === 'sucre' ? 360
-                : 400;
-              const cy = m.id === 'libertador' ? 145
-                : m.id === 'chacao' ? 105
-                : m.id === 'baruta' ? 185
-                : m.id === 'sucre' ? 105
-                : 200;
-              return (
-                <text
-                  key={m.id}
-                  x={cx}
-                  y={cy}
-                  textAnchor="middle"
-                  className="pointer-events-none fill-slate-200 font-medium"
-                  style={{ fontSize: 11 }}
+                  center={[m.lat, m.lng]}
+                  radius={12 + 10 * (m.applications / max)}
+                  pathOptions={{ color, fillColor: color, fillOpacity: active ? 0.75 : 0.5, weight: active ? 2.5 : 1.2 }}
+                  eventHandlers={{ mouseover: () => setHovered(m), mouseout: () => setHovered(null) }}
                 >
-                  {m.name}
-                </text>
+                  <Popup>
+                    <b>{m.name}</b><br />
+                    {m.applications} solicitudes · {m.approved} aprobadas
+                  </Popup>
+                </CircleMarker>
               );
             })}
-          </svg>
+          </MapContainer>
         </div>
 
         {/* Legend / list */}
@@ -111,18 +77,18 @@ export function CaracasHeatmap() {
                 className={`w-full text-left rounded-xl border px-3 py-2.5 transition-colors ${
                   active
                     ? 'border-accent-500/40 bg-accent-500/10'
-                    : 'border-white/5 bg-ink-900/40 hover:border-white/10'
+                    : 'border-tint/5 bg-ink-900/40 hover:border-tint/10'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-200">
                     {m.name}
                   </span>
-                  <span className="font-mono text-xs text-slate-400">
+                  <span className="num text-xs text-slate-400">
                     {m.applications}
                   </span>
                 </div>
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-tint/5">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(m.applications / max) * 100}%` }}

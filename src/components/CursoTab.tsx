@@ -20,12 +20,14 @@ import { useStore } from '../store';
 import { COURSES, BADGES } from '../educationData';
 import type { Course, QuizQuestion } from '../types';
 import { Card, SectionHeader, Modal, EmptyState, fmtPct } from './ui';
+import { useToast } from '../context/ToastContext';
+import { friendlyError } from '../lib/errors';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  ventas: 'from-accent-500/20 to-accent-500/5 text-accent-300',
-  cobranza: 'from-warning/20 to-warning/5 text-warning-400',
-  producto: 'from-sky-500/20 to-sky-500/5 text-sky-300',
-  objeciones: 'from-violet-500/20 to-violet-500/5 text-violet-400',
+  ventas: 'bg-ink-900/60 ring-1 ring-accent-500/20 text-accent-300',
+  cobranza: 'bg-ink-900/60 ring-1 ring-warning/20 text-warning-400',
+  producto: 'bg-ink-900/60 ring-1 ring-tint/10 text-metal-300',
+  objeciones: 'bg-ink-900/60 ring-1 ring-accent-500/20 text-accent-300',
 };
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -83,15 +85,15 @@ export function CursoTab() {
                 className={`relative rounded-2xl border p-4 text-center transition-colors ${
                   earned
                     ? 'border-warning/30 bg-gradient-to-br from-warning/10 to-warning/5'
-                    : 'border-white/5 bg-ink-900/40 opacity-60'
+                    : 'border-tint/5 bg-ink-900/40 opacity-60'
                 }`}
               >
-                <div className={`mx-auto grid h-12 w-12 place-items-center rounded-full ${earned ? 'bg-warning/20 text-warning-400' : 'bg-white/5 text-slate-500'}`}>
+                <div className={`mx-auto grid h-12 w-12 place-items-center rounded-full ${earned ? 'bg-warning/20 text-warning-400' : 'bg-tint/5 text-slate-500'}`}>
                   {earned ? <Icon size={22} /> : <Lock size={18} />}
                 </div>
-                <p className="mt-2 text-sm font-medium text-white">{b.name}</p>
+                <p className="mt-2 text-sm font-medium text-metal-100">{b.name}</p>
                 <p className="mt-0.5 text-[11px] text-slate-500 leading-snug">{b.description}</p>
-                <span className="mt-2 inline-block chip bg-white/5 text-slate-400">≥ {b.threshold}%</span>
+                <span className="mt-2 inline-block chip bg-tint/5 text-slate-400">≥ {b.threshold}%</span>
               </motion.div>
             );
           })}
@@ -113,14 +115,14 @@ export function CursoTab() {
             >
               <Card hover className="p-5 h-full flex flex-col">
                 <div className="flex items-start justify-between">
-                  <div className={`grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br ${CATEGORY_COLORS[c.category]}`}>
+                  <div className={`grid h-11 w-11 place-items-center rounded-xl ${CATEGORY_COLORS[c.category]}`}>
                     <GraduationCap size={20} />
                   </div>
-                  <span className="chip bg-white/5 text-slate-400">
+                  <span className="chip bg-tint/5 text-slate-400">
                     {LEVEL_LABELS[c.level]}
                   </span>
                 </div>
-                <h3 className="mt-3 font-display text-base font-semibold text-white">{c.title}</h3>
+                <h3 className="mt-3 font-display text-base font-medium text-metal-100">{c.title}</h3>
                 <p className="mt-1 text-sm text-slate-400 leading-relaxed flex-1">{c.description}</p>
                 <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
                   <span className="flex items-center gap-1"><BookOpen size={12} /> {c.lessons.length} lecciones</span>
@@ -129,7 +131,7 @@ export function CursoTab() {
                     <span className="flex items-center gap-1 text-success-500"><Star size={12} /> {fmtPct(prog.bestScore)}</span>
                   )}
                 </div>
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-tint/5">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
@@ -157,12 +159,29 @@ export function CursoTab() {
 
 function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () => void }) {
   const { progress, completeLesson, recordQuizAttempt } = useStore();
+  const toast = useToast();
   const [lessonIdx, setLessonIdx] = useState(0);
   const [mode, setMode] = useState<'lessons' | 'quiz'>('lessons');
 
   if (!course) return null;
   const prog = progress.find((p) => p.courseId === course.id);
   const lessonsDone = prog?.completedLessons ?? [];
+
+  const handleCompleteLesson = async () => {
+    try {
+      await completeLesson(course.id, course.lessons[lessonIdx].id);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
+  };
+
+  const handleQuizComplete = async (score: number) => {
+    try {
+      await recordQuizAttempt(course.id, score);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
+  };
 
   return (
     <Modal open={!!course} onClose={onClose} title={course.title} size="xl">
@@ -177,7 +196,7 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
               key={t.id}
               onClick={() => setMode(t.id)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                mode === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-white'
+                mode === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-metal-100'
               }`}
             >
               {t.label}
@@ -197,7 +216,7 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
                     key={l.id}
                     onClick={() => setLessonIdx(i)}
                     className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-                      active ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:bg-white/5'
+                      active ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:bg-tint/5'
                     }`}
                   >
                     {done ? <CheckCircle2 size={13} className="text-success-500" /> : <Circle size={13} />}
@@ -213,9 +232,9 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
                 initial={{ opacity: 0, x: 8 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
-                className="rounded-xl border border-white/5 bg-ink-900/40 p-5"
+                className="rounded-xl border border-tint/5 bg-ink-900/40 p-5"
               >
-                <h4 className="font-display text-lg font-semibold text-white">
+                <h4 className="font-display text-lg font-medium text-metal-100">
                   {course.lessons[lessonIdx].title}
                 </h4>
                 <p className="mt-3 text-sm text-slate-300 leading-relaxed">
@@ -223,7 +242,7 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
                 </p>
                 <div className="mt-4 rounded-xl bg-accent-500/10 p-3 ring-1 ring-accent-500/20">
                   <p className="text-xs uppercase tracking-wider text-accent-300">Idea clave</p>
-                  <p className="mt-1 text-sm text-white">{course.lessons[lessonIdx].keyTakeaway}</p>
+                  <p className="mt-1 text-sm text-metal-100">{course.lessons[lessonIdx].keyTakeaway}</p>
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -237,7 +256,7 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
                 Anterior
               </button>
               <button
-                onClick={() => completeLesson(course.id, course.lessons[lessonIdx].id)}
+                onClick={handleCompleteLesson}
                 className="btn-outline"
               >
                 <CheckCircle2 size={14} /> Marcar completada
@@ -256,7 +275,7 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
             questions={course.quiz.questions}
             bestScore={prog?.bestScore ?? 0}
             attempts={prog?.attempts ?? 0}
-            onComplete={(score) => recordQuizAttempt(course.id, score)}
+            onComplete={handleQuizComplete}
           />
         )}
       </div>
@@ -328,7 +347,7 @@ function QuizRunner({
         <div className={`mx-auto grid h-16 w-16 place-items-center rounded-full ${passed ? 'bg-success/20 text-success-500' : 'bg-warning/20 text-warning-400'}`}>
           {passed ? <Trophy size={28} /> : <RotateCcw size={26} />}
         </div>
-        <p className="mt-4 font-display text-3xl font-semibold text-white">{fmtPct(score)}</p>
+        <p className="mt-4 font-display text-3xl font-medium text-metal-100">{fmtPct(score)}</p>
         <p className="mt-1 text-sm text-slate-400">
           {passed ? '¡Felicitaciones, aprobaste!' : 'Sigue practicando para mejorar.'}
         </p>
@@ -349,7 +368,7 @@ function QuizRunner({
         <span className="text-xs text-slate-500">Pregunta {idx + 1} de {questions.length}</span>
         <div className="flex gap-1">
           {questions.map((_, i) => (
-            <span key={i} className={`h-1.5 rounded-full ${i < idx ? 'w-4 bg-success-500' : i === idx ? 'w-5 bg-accent-400' : 'w-1.5 bg-white/15'}`} />
+            <span key={i} className={`h-1.5 rounded-full ${i < idx ? 'w-4 bg-success-500' : i === idx ? 'w-5 bg-accent-400' : 'w-1.5 bg-tint/15'}`} />
           ))}
         </div>
       </div>
@@ -361,12 +380,12 @@ function QuizRunner({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -8 }}
         >
-          <p className="font-display text-base font-semibold text-white">{q.prompt}</p>
+          <p className="font-display text-base font-medium text-metal-100">{q.prompt}</p>
           <div className="mt-3 space-y-2">
             {q.options.map((opt, i) => {
               const isCorrect = i === q.correctIndex;
               const isSelected = selected === i;
-              let style = 'border-white/10 bg-ink-900/40 hover:border-accent-500/40';
+              let style = 'border-tint/10 bg-ink-900/40 hover:border-accent-500/40';
               if (showFeedback && isCorrect) style = 'border-success-500/40 bg-success/10';
               else if (showFeedback && isSelected && !isCorrect) style = 'border-danger/40 bg-danger/10';
               else if (isSelected) style = 'border-accent-500/50 bg-accent-500/10';
@@ -379,9 +398,9 @@ function QuizRunner({
                 >
                   <span className="flex items-center gap-2.5">
                     <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-medium ${
-                      showFeedback && isCorrect ? 'bg-success-500 text-white' :
-                      showFeedback && isSelected && !isCorrect ? 'bg-danger-500 text-white' :
-                      isSelected ? 'bg-accent-500 text-white' : 'bg-white/5 text-slate-400'
+                      showFeedback && isCorrect ? 'bg-success-500 text-metal-100' :
+                      showFeedback && isSelected && !isCorrect ? 'bg-danger-500 text-metal-100' :
+                      isSelected ? 'bg-accent-500 text-metal-100' : 'bg-tint/5 text-slate-400'
                     }`}>
                       {showFeedback && isCorrect ? <CheckCircle2 size={13} /> :
                        showFeedback && isSelected && !isCorrect ? <Icons.X size={13} /> :
@@ -398,7 +417,7 @@ function QuizRunner({
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-3 rounded-xl bg-ink-850 p-3 ring-1 ring-white/5"
+              className="mt-3 rounded-xl bg-ink-850 p-3 ring-1 ring-tint/5"
             >
               <p className={`text-xs font-medium ${selected === q.correctIndex ? 'text-success-500' : 'text-danger-400'}`}>
                 {selected === q.correctIndex ? '¡Correcto!' : 'Respuesta incorrecta'}
@@ -429,9 +448,9 @@ function StatTile({ icon, label, value, accent }: { icon: React.ReactNode; label
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <span className={accent}>{icon}</span>
-        <span className="text-xs uppercase tracking-wider text-slate-500">{label}</span>
+        <span className="kicker">{label}</span>
       </div>
-      <p className="mt-1.5 font-display text-xl font-semibold text-white">{value}</p>
+      <p className="mt-1.5 font-display text-xl font-medium text-metal-100">{value}</p>
     </Card>
   );
 }

@@ -8,10 +8,10 @@ import { X } from 'lucide-react';
 export const STATUS_STYLES: Record<string, string> = {
   prospecto: 'bg-slate-500/15 text-slate-300 ring-1 ring-slate-400/30',
   en_revision: 'bg-warning/15 text-warning-400 ring-1 ring-warning/30',
-  aprobado: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/30',
+  aprobado: 'bg-accent-500/15 text-accent-300 ring-1 ring-accent-400/30',
   activo: 'bg-success/15 text-success-500 ring-1 ring-success-500/30',
   en_mora: 'bg-danger/15 text-danger-400 ring-1 ring-danger/30',
-  rechazado: 'bg-rose-900/30 text-rose-300 ring-1 ring-rose-500/30',
+  rechazado: 'bg-metal-700/30 text-metal-400 ring-1 ring-metal-600/30',
   pagada: 'bg-success/15 text-success-500 ring-1 ring-success-500/30',
   pendiente: 'bg-warning/15 text-warning-400 ring-1 ring-warning/30',
   vencida: 'bg-danger/15 text-danger-400 ring-1 ring-danger/30',
@@ -71,12 +71,12 @@ export function SectionHeader({
     <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
       <div className="flex items-start gap-3">
         {icon && (
-          <div className="mt-0.5 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-accent-500/15 to-violet-500/10 text-accent-300 ring-1 ring-accent-500/20 shadow-sm">
+          <div className="mt-0.5 grid h-9 w-9 place-items-center rounded-xl bg-ink-900/60 text-accent-300 ring-1 ring-accent-500/20 shadow-sm">
             {icon}
           </div>
         )}
         <div>
-          <h2 className="font-display text-xl font-semibold text-white tracking-tight">
+          <h2 className="font-display text-xl font-medium text-metal-100 tracking-tight">
             {title}
           </h2>
           {subtitle && <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>}
@@ -132,22 +132,25 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-            className={`relative w-full ${sizes[size]} card max-h-[88vh] overflow-y-auto p-6`}
+            className={`relative w-full ${sizes[size]} card max-h-[90vh] overflow-y-auto`}
           >
             {/* Subtle top gradient line */}
-            <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-accent-500/30 to-transparent" />
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-white">
+            <div className="absolute top-0 left-6 right-6 h-px z-20 bg-gradient-to-r from-transparent via-accent-500/30 to-transparent" />
+            {/* Encabezado sticky: el botón de cerrar siempre queda visible aunque el contenido sea largo */}
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-[var(--color-surface)] px-6 pt-6 pb-4">
+              <h3 className="font-display text-lg font-medium text-metal-100">
                 {title}
               </h3>
               <button
                 onClick={onClose}
-                className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-200 hover:scale-110"
+                className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-tint/5 hover:text-metal-100 transition-all duration-200 hover:scale-110"
               >
                 <X size={18} />
               </button>
             </div>
-            {children}
+            <div className="px-6 pb-6">
+              {children}
+            </div>
           </motion.div>
         </div>
       )}
@@ -168,43 +171,12 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] text-slate-500 ring-1 ring-white/5">
+      <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-ink-900/60 text-slate-500 ring-1 ring-tint/5">
         {icon}
       </div>
       <p className="font-medium text-slate-300">{title}</p>
       {body && <p className="text-sm text-slate-500 mt-1 max-w-sm">{body}</p>}
     </div>
-  );
-}
-
-// ---------- Animated number ----------
-
-export function AnimatedNumber({
-  value,
-  prefix = '',
-  suffix = '',
-  decimals = 0,
-}: {
-  value: number;
-  prefix?: string;
-  suffix?: string;
-  decimals?: number;
-}) {
-  return (
-    <motion.span
-      key={value}
-      initial={{ opacity: 0.4, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="font-mono tabular-nums"
-    >
-      {prefix}
-      {value.toLocaleString('es-VE', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })}
-      {suffix}
-    </motion.span>
   );
 }
 

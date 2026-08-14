@@ -20,7 +20,7 @@ const ACTION_STYLES: Record<string, { color: string; label: string }> = {
   pay_invoice: { color: 'bg-success/15 text-success-500', label: 'Pagar' },
   toggle_active: { color: 'bg-warning/15 text-warning-400', label: 'Activar/Desactivar' },
   generate_schedule: { color: 'bg-violet-500/15 text-violet-400', label: 'Generar cronograma' },
-  update_settings: { color: 'bg-sky-500/15 text-sky-300', label: 'Configurar' },
+  update_settings: { color: 'bg-accent-500/15 text-accent-300', label: 'Configurar' },
 };
 
 export function AuditoriaTab() {
@@ -53,7 +53,7 @@ export function AuditoriaTab() {
             key={e}
             onClick={() => setEntityFilter(e)}
             className={`chip transition-colors ${
-              entityFilter === e ? 'bg-accent-500/20 text-accent-200 ring-1 ring-accent-500/30' : 'bg-white/5 text-slate-400 hover:text-white'
+              entityFilter === e ? 'bg-accent-500/20 text-accent-200 ring-1 ring-accent-500/30' : 'bg-tint/5 text-slate-400 hover:text-metal-100'
             }`}
           >
             {e === 'all' ? 'Todas' : e.replace('_', ' ')}
@@ -70,7 +70,7 @@ export function AuditoriaTab() {
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-ink-850 backdrop-blur-sm">
-                <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                <tr className="text-left kicker">
                   <th className="px-4 py-3 font-medium">Fecha</th>
                   <th className="px-4 py-3 font-medium">Usuario</th>
                   <th className="px-4 py-3 font-medium">Acción</th>
@@ -78,10 +78,10 @@ export function AuditoriaTab() {
                   <th className="px-4 py-3 font-medium">Detalle</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-tint/5">
                 {filtered.map((a, i) => {
                   const Icon = ENTITY_ICONS[a.entity] ?? FileText;
-                  const actionMeta = ACTION_STYLES[a.action] ?? { color: 'bg-white/5 text-slate-400', label: a.action };
+                  const actionMeta = ACTION_STYLES[a.action] ?? { color: 'bg-tint/5 text-slate-400', label: a.action };
                   return (
                     <motion.tr
                       key={a.id}

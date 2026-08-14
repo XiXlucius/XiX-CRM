@@ -1,0 +1,546 @@
+import type {
+  RoleProfile,
+  NavItem,
+  CaracasMunicipality,
+  Client,
+  TeamMember,
+  Invoice,
+  Product,
+  TourStep,
+} from './types';
+
+// ============================================================
+// Roles & permissions
+// ============================================================
+
+export const ROLES: RoleProfile[] = [
+  {
+    id: 'admin',
+    name: 'Admin',
+    label: 'Administrador',
+    description: 'Control total: configuración, permisos, inventario y reportes.',
+    initials: 'AD',
+    color: 'from-rose-500 to-orange-500',
+    permissions: [
+      'dashboard',
+      'crm',
+      'courses',
+      'playbook',
+      'equipo',
+      'facturacion',
+      'inventario',
+      'config',
+      'reportes',
+      'auditoria',
+    ],
+  },
+  {
+    id: 'gerente',
+    name: 'Gerente',
+    label: 'Gerente Regional',
+    description: 'Supervisa equipos, comisiones y cartera global.',
+    initials: 'GE',
+    color: 'from-accent-500 to-violet-500',
+    permissions: ['dashboard', 'crm', 'equipo', 'facturacion', 'inventario', 'reportes'],
+  },
+  {
+    id: 'supervisor',
+    name: 'Supervisor',
+    label: 'Supervisor de Zona',
+    description: 'Acompaña vendedores, revisa mora y bitácoras.',
+    initials: 'SU',
+    color: 'from-emerald-500 to-teal-500',
+    permissions: ['dashboard', 'crm', 'facturacion', 'playbook', 'auditoria'],
+  },
+  {
+    id: 'vendedor',
+    name: 'Vendedor',
+    label: 'Vendedor Particular',
+    description: 'Registro de clientes, cursos y manejo de objeciones.',
+    initials: 'VE',
+    color: 'from-sky-500 to-cyan-500',
+    permissions: ['dashboard', 'crm', 'courses', 'playbook', 'facturacion'],
+  },
+];
+
+export const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard', description: 'KPIs y mapa de Caracas' },
+  { id: 'crm', label: 'CRM Clientes', icon: 'Users', description: 'Cartera y solicitudes a crédito' },
+  { id: 'courses', label: 'Academia', icon: 'GraduationCap', description: 'Cursos y certificaciones' },
+  { id: 'playbook', label: 'Playbook', icon: 'MessageSquare', description: 'Manejo de objeciones R.E.S.' },
+  { id: 'equipo', label: 'Equipo', icon: 'UsersRound', description: 'Miembros y comisiones' },
+  { id: 'facturacion', label: 'Facturación', icon: 'ReceiptText', description: 'Cronograma de cobranzas' },
+  { id: 'inventario', label: 'Inventario', icon: 'Boxes', description: 'Catálogo y rotación' },
+  { id: 'config', label: 'Configuración', icon: 'Settings', description: 'Permisos y sistema' },
+  { id: 'reportes', label: 'Reportes', icon: 'FileBarChart', description: 'Exportación y análisis' },
+  { id: 'auditoria', label: 'Auditoría', icon: 'History', description: 'Historial de actividad' },
+];
+
+// ============================================================
+// Caracas municipalities — stylized SVG shapes
+// ============================================================
+
+export const CARACAS_MUNICIPALITIES: CaracasMunicipality[] = [
+  {
+    id: 'libertador',
+    name: 'Libertador',
+    applications: 312,
+    approved: 187,
+    path: 'M40 60 L120 40 L210 70 L240 150 L200 230 L110 250 L50 200 L20 130 Z',
+  },
+  {
+    id: 'chacao',
+    name: 'Chacao',
+    applications: 198,
+    approved: 142,
+    path: 'M210 70 L280 60 L320 110 L300 170 L240 150 Z',
+  },
+  {
+    id: 'baruta',
+    name: 'Baruta',
+    applications: 167,
+    approved: 118,
+    path: 'M240 150 L320 110 L380 160 L360 230 L290 250 L200 230 Z',
+  },
+  {
+    id: 'sucre',
+    name: 'Sucre',
+    applications: 143,
+    approved: 89,
+    path: 'M280 60 L360 50 L420 100 L400 170 L320 110 Z',
+  },
+  {
+    id: 'hatillo',
+    name: 'El Hatillo',
+    applications: 78,
+    approved: 41,
+    path: 'M360 230 L420 100 L470 170 L440 260 L360 280 L290 250 Z',
+  },
+];
+
+// ============================================================
+// CRM seed clients
+// ============================================================
+
+const now = new Date();
+const iso = (daysAgo: number) =>
+  new Date(now.getTime() - daysAgo * 86400000).toISOString();
+
+export const SEED_CLIENTS: Client[] = [
+  {
+    id: 'c1',
+    fullName: 'María González',
+    cedula: 'V-12.345.678',
+    phone: '+58 412-5550143',
+    email: 'maria.gonzalez@gmail.com',
+    municipality: 'chacao',
+    address: 'Av. Francisco de Miranda, Ed. Aurora, Apt 4B',
+    product: 'Nevera Inverter 12ft',
+    productCost: 1850,
+    downPaymentPct: 20,
+    interestRate: 18,
+    frequency: 'quincenal',
+    termMonths: 12,
+    status: 'activo',
+    assignedAgent: 'Vendedor Particular',
+    riskScore: 78,
+    monthlyIncome: 1200,
+    employmentTenure: 'gt-2y',
+    hasPhysicalId: true,
+    createdAt: iso(40),
+    bitacora: [
+      {
+        id: 'b1',
+        date: iso(40),
+        author: 'Vendedor',
+        channel: 'whatsapp',
+        note: 'Primer contacto, interesada en nevera. Envió documentos.',
+        outcome: 'compromiso',
+      },
+      {
+        id: 'b2',
+        date: iso(25),
+        author: 'Vendedor',
+        channel: 'llamada',
+        note: 'Confirmó inicial de 20%. Se calculó plan quincenal.',
+        outcome: 'contactado',
+      },
+    ],
+  },
+  {
+    id: 'c2',
+    fullName: 'José Rodríguez',
+    cedula: 'V-9.876.543',
+    phone: '+58 414-5550987',
+    email: 'j.rodriguez@hotmail.com',
+    municipality: 'libertador',
+    address: 'Catia, Calle Real de Propatria, Casa 12',
+    product: 'Estufa 4 hornillas',
+    productCost: 980,
+    downPaymentPct: 30,
+    interestRate: 22,
+    frequency: 'semanal',
+    termMonths: 6,
+    status: 'en_mora',
+    assignedAgent: 'Vendedor Particular',
+    riskScore: 78,
+    monthlyIncome: 1200,
+    employmentTenure: '4-6m',
+    hasPhysicalId: true,
+    createdAt: iso(75),
+    bitacora: [
+      {
+        id: 'b3',
+        date: iso(75),
+        author: 'Vendedor',
+        channel: 'visita',
+        note: 'Visita domiciliaria, ingreso informal, aprobado con inicial alta.',
+        outcome: 'compromiso',
+      },
+      {
+        id: 'b4',
+        date: iso(10),
+        author: 'Supervisor',
+        channel: 'llamada',
+        note: 'Cuota vencida hace 9 días, cliente no responde.',
+        outcome: 'no_responde',
+      },
+    ],
+  },
+  {
+    id: 'c3',
+    fullName: 'Carolina Pérez',
+    cedula: 'V-14.221.009',
+    phone: '+58 424-5554471',
+    email: 'carolina.perez@gmail.com',
+    municipality: 'baruta',
+    address: 'Las Mercedes, Calle Tres, Quinta Carolina',
+    product: 'Aire Acondicionado 12.000 BTU',
+    productCost: 720,
+    downPaymentPct: 15,
+    interestRate: 16,
+    frequency: 'mensual',
+    termMonths: 18,
+    status: 'aprobado',
+    assignedAgent: 'Vendedor Particular',
+    riskScore: 78,
+    monthlyIncome: 1200,
+    employmentTenure: '1-2y',
+    hasPhysicalId: true,
+    createdAt: iso(8),
+    bitacora: [
+      {
+        id: 'b5',
+        date: iso(8),
+        author: 'Vendedor',
+        channel: 'email',
+        note: 'Solicitud recibida vía web. Documentos completos.',
+        outcome: 'compromiso',
+      },
+    ],
+  },
+  {
+    id: 'c4',
+    fullName: 'Luis Hernández',
+    cedula: 'V-7.110.332',
+    phone: '+58 416-5557712',
+    email: 'luis.h@gmail.com',
+    municipality: 'sucre',
+    address: 'Petare, Av. principal de Sta. Cruz del Este',
+    product: 'Televisor 55" 4K',
+    productCost: 1340,
+    downPaymentPct: 10,
+    interestRate: 24,
+    frequency: 'semanal',
+    termMonths: 9,
+    status: 'prospecto',
+    assignedAgent: 'Vendedor Particular',
+    riskScore: 78,
+    monthlyIncome: 1200,
+    employmentTenure: 'lt-3m',
+    hasPhysicalId: true,
+    createdAt: iso(3),
+    bitacora: [
+      {
+        id: 'b6',
+        date: iso(3),
+        author: 'Vendedor',
+        channel: 'whatsapp',
+        note: 'Lead entrante, pidió cotización de TV. Pendiente envío de recibo.',
+        outcome: 'recordatorio',
+      },
+    ],
+  },
+  {
+    id: 'c5',
+    fullName: 'Andreína Silva',
+    cedula: 'V-16.003.871',
+    phone: '+58 412-5553300',
+    email: 'andreina.silva@gmail.com',
+    municipality: 'hatillo',
+    address: 'El Hatillo, Calle Humboldt, Res. Las Palmas, Apt 2A',
+    product: 'Lavadora Automática 12kg',
+    productCost: 1120,
+    downPaymentPct: 25,
+    interestRate: 17,
+    frequency: 'quincenal',
+    termMonths: 12,
+    status: 'en_revision',
+    assignedAgent: 'Vendedor Particular',
+    riskScore: 78,
+    monthlyIncome: 1200,
+    employmentTenure: '6m-1y',
+    hasPhysicalId: true,
+    createdAt: iso(5),
+    bitacora: [
+      {
+        id: 'b7',
+        date: iso(5),
+        author: 'Vendedor',
+        channel: 'llamada',
+        note: 'Cliente premium, solicita plan quincenal. Validando ingresos.',
+        outcome: 'compromiso',
+      },
+    ],
+  },
+  {
+    id: 'c6',
+    fullName: 'Pedro Márquez',
+    cedula: 'V-8.445.120',
+    phone: '+58 426-5558810',
+    email: 'pedro.marquez@gmail.com',
+    municipality: 'libertador',
+    address: 'El Valle, Calle Bolívar, Ed. Los Cedros, PB',
+    product: 'Microondas Digital',
+    productCost: 410,
+    downPaymentPct: 40,
+    interestRate: 20,
+    frequency: 'semanal',
+    termMonths: 4,
+    status: 'rechazado',
+    assignedAgent: 'Vendedor Particular',
+    riskScore: 78,
+    monthlyIncome: 1200,
+    employmentTenure: '4-6m',
+    hasPhysicalId: false,
+    createdAt: iso(20),
+    bitacora: [
+      {
+        id: 'b8',
+        date: iso(20),
+        author: 'Vendedor',
+        channel: 'visita',
+        note: 'No presenta comprobantes de ingreso estables. Rechazado.',
+        outcome: 'rechazo',
+      },
+    ],
+  },
+];
+
+// ============================================================
+// Team members
+// ============================================================
+
+export const SEED_TEAM: TeamMember[] = [
+  {
+    id: 't1',
+    name: 'Beatriz Núñez',
+    role: 'gerente',
+    email: 'beatriz@xixtech.com',
+    phone: '+58 412-5550011',
+    active: true,
+    goalMonthly: 50000,
+    achievedMonthly: 47200,
+    commissionRatePct: 3.5,
+    activePortfolio: 312000,
+    delinquencyPct: 4.1,
+    joinedAt: iso(720),
+  },
+  {
+    id: 't2',
+    name: 'Carlos Mendoza',
+    role: 'supervisor',
+    email: 'carlos@xixtech.com',
+    phone: '+58 414-5550022',
+    active: true,
+    goalMonthly: 28000,
+    achievedMonthly: 26100,
+    commissionRatePct: 2.8,
+    activePortfolio: 184000,
+    delinquencyPct: 6.8,
+    joinedAt: iso(540),
+  },
+  {
+    id: 't3',
+    name: 'Daniela Ríos',
+    role: 'vendedor',
+    email: 'daniela@xixtech.com',
+    phone: '+58 424-5550033',
+    active: true,
+    goalMonthly: 14000,
+    achievedMonthly: 15800,
+    commissionRatePct: 4.0,
+    activePortfolio: 92000,
+    delinquencyPct: 2.3,
+    joinedAt: iso(310),
+  },
+  {
+    id: 't4',
+    name: 'Eduardo Salas',
+    role: 'vendedor',
+    email: 'eduardo@xixtech.com',
+    phone: '+58 416-5550044',
+    active: false,
+    goalMonthly: 14000,
+    achievedMonthly: 6400,
+    commissionRatePct: 4.0,
+    activePortfolio: 41000,
+    delinquencyPct: 11.2,
+    joinedAt: iso(190),
+  },
+  {
+    id: 't5',
+    name: 'Fernanda López',
+    role: 'vendedor',
+    email: 'fernanda@xixtech.com',
+    phone: '+58 412-5550055',
+    active: true,
+    goalMonthly: 14000,
+    achievedMonthly: 13200,
+    commissionRatePct: 4.0,
+    activePortfolio: 78000,
+    delinquencyPct: 5.0,
+    joinedAt: iso(120),
+  },
+  {
+    id: 't6',
+    name: 'Administrador Sistema',
+    role: 'admin',
+    email: 'admin@xixtech.com',
+    phone: '+58 000-0000000',
+    active: true,
+    goalMonthly: 0,
+    achievedMonthly: 0,
+    commissionRatePct: 0,
+    activePortfolio: 0,
+    delinquencyPct: 0,
+    joinedAt: iso(900),
+  },
+];
+
+// ============================================================
+// Invoices
+// ============================================================
+
+const dueIn = (days: number) =>
+  new Date(now.getTime() + days * 86400000).toISOString();
+
+export const SEED_INVOICES: Invoice[] = [
+  { id: 'i1', clientId: 'c1', clientName: 'María González', amount: 154.17, dueDate: dueIn(-2), paidDate: dueIn(-2), status: 'pagada', isDownPayment: false, installmentNumber: 3, totalInstallments: 24 },
+  { id: 'i2', clientId: 'c1', clientName: 'María González', amount: 154.17, dueDate: dueIn(13), paidDate: null, status: 'pendiente', isDownPayment: false, installmentNumber: 4, totalInstallments: 24 },
+  { id: 'i3', clientId: 'c2', clientName: 'José Rodríguez', amount: 41.2, dueDate: dueIn(-9), paidDate: null, status: 'vencida', isDownPayment: false, installmentNumber: 7, totalInstallments: 24 },
+  { id: 'i4', clientId: 'c2', clientName: 'José Rodríguez', amount: 41.2, dueDate: dueIn(-2), paidDate: null, status: 'vencida', isDownPayment: false, installmentNumber: 8, totalInstallments: 24 },
+  { id: 'i5', clientId: 'c3', clientName: 'Carolina Pérez', amount: 108, dueDate: dueIn(0), paidDate: null, status: 'pendiente', isDownPayment: true, installmentNumber: 1, totalInstallments: 1 },
+  { id: 'i6', clientId: 'c5', clientName: 'Andreína Silva', amount: 280, dueDate: dueIn(5), paidDate: null, status: 'pendiente', isDownPayment: true, installmentNumber: 1, totalInstallments: 1 },
+  { id: 'i7', clientId: 'c1', clientName: 'María González', amount: 370, dueDate: dueIn(-40), paidDate: dueIn(-40), status: 'pagada', isDownPayment: true, installmentNumber: 1, totalInstallments: 1 },
+  { id: 'i8', clientId: 'c4', clientName: 'Luis Hernández', amount: 134, dueDate: dueIn(7), paidDate: null, status: 'pendiente', isDownPayment: true, installmentNumber: 1, totalInstallments: 1 },
+];
+
+// ============================================================
+// Inventory
+// ============================================================
+
+export const SEED_PRODUCTS: Product[] = [
+  { id: 'p1', sku: 'ELC-NEV-12', name: 'Nevera Inverter 12ft', category: 'Electrodomésticos', basePrice: 1850, taxPct: 16, discountPct: 0, stock: 8, sold: 42 },
+  { id: 'p2', sku: 'ELC-EST-4H', name: 'Estufa 4 hornillas', category: 'Electrodomésticos', basePrice: 980, taxPct: 16, discountPct: 5, stock: 3, sold: 15 },
+  { id: 'p3', sku: 'ELC-AAC-12', name: 'Aire Acondicionado 12.000 BTU', category: 'Electrodomésticos', basePrice: 720, taxPct: 16, discountPct: 0, stock: 14, sold: 28 },
+  { id: 'p4', sku: 'ELC-TV-55', name: 'Televisor 55" 4K', category: 'Electrodomésticos', basePrice: 1340, taxPct: 16, discountPct: 10, stock: 2, sold: 9 },
+  { id: 'p5', sku: 'ELC-LAV-12', name: 'Lavadora Automática 12kg', category: 'Electrodomésticos', basePrice: 1120, taxPct: 16, discountPct: 0, stock: 6, sold: 22 },
+  { id: 'p6', sku: 'ELC-MIC-D', name: 'Microondas Digital', category: 'Electrodomésticos', basePrice: 410, taxPct: 16, discountPct: 0, stock: 0, sold: 31 },
+  { id: 'p7', sku: 'MOB-SOF-3P', name: 'Sofá 3 plazas', category: 'Mobiliario', basePrice: 640, taxPct: 16, discountPct: 0, stock: 5, sold: 7 },
+  { id: 'p8', sku: 'MOB-COM-6', name: 'Comedor 6 puestos', category: 'Mobiliario', basePrice: 890, taxPct: 16, discountPct: 15, stock: 1, sold: 4 },
+];
+
+// ============================================================
+// Onboarding tour
+// ============================================================
+
+export const TOUR_STEPS: TourStep[] = [
+  {
+    id: 'welcome',
+    target: 'header',
+    title: 'Bienvenido a XiX Tech',
+    body: 'Tu plataforma integral para la venta a crédito, formación de agentes y gestión de cartera. Te guiaremos por lo esencial.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+  {
+    id: 'role',
+    target: 'role-switcher',
+    title: 'Cambia de perfil',
+    body: 'Aquí puedes alternar entre Admin, Gerente, Supervisor y Vendedor. La navegación y los controles se adaptan a tu rol.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+  {
+    id: 'nav',
+    target: 'sidebar',
+    title: 'Navegación adaptativa',
+    body: 'El menú lateral muestra solo los módulos permitidos para tu rol. Cada ícono te lleva a un área clave del CRM.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+  {
+    id: 'dashboard',
+    target: 'dashboard',
+    title: 'Dashboard ejecutivo',
+    body: 'KPIs en tiempo real: tasa de conversión, cartera activa, índice de mora y cobranzas. Mapa de calor de Caracas incluido.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+  {
+    id: 'crm',
+    target: 'crm',
+    title: 'CRM de clientes',
+    body: 'Registra solicitudes a crédito, calcula planes de amortización y lleva la bitácora de contacto por cliente.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+  {
+    id: 'courses',
+    target: 'courses',
+    title: 'Academia gamificada',
+    body: 'Cursos interactivos con quizzes de auto-evaluación. Gana insignias al superar puntajes de rendimiento.',
+    roles: ['vendedor'],
+  },
+  {
+    id: 'playbook',
+    target: 'playbook',
+    title: 'Playbook de objeciones',
+    body: 'Practica el método R.E.S. (Relación, Educación, Solución) con un simulador de roleplay ramificado.',
+    roles: ['vendedor', 'supervisor'],
+  },
+  {
+    id: 'equipo',
+    target: 'equipo',
+    title: 'Equipo y comisiones',
+    body: 'Gestiona el roster de vendedores, metas, tasas de comisión y estado activo/inactivo.',
+    roles: ['admin', 'gerente'],
+  },
+  {
+    id: 'facturacion',
+    target: 'facturacion',
+    title: 'Facturación y cobranza',
+    body: 'Visualiza el cronograma de cuotas, estados de pago y genera facturas de iniciales.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+  {
+    id: 'inventario',
+    target: 'inventario',
+    title: 'Inventario y rotación',
+    body: 'Catálogo de productos con alertas inteligentes de quiebre de stock y gráfico de rotación.',
+    roles: ['admin', 'gerente'],
+  },
+  {
+    id: 'end',
+    target: 'header',
+    title: 'Listo para vender',
+    body: 'Has completado el recorrido. Explora cada módulo y comienza a gestionar tu cartera de crédito.',
+    roles: ['admin', 'gerente', 'supervisor', 'vendedor'],
+  },
+];

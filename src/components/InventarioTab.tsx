@@ -11,6 +11,7 @@ import {
   TrendingUp,
   PackageX,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -25,11 +26,15 @@ import {
 import { useStore } from '../store';
 import type { Product } from '../types';
 import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtPct } from './ui';
+import { useToast } from '../context/ToastContext';
+import { friendlyError } from '../lib/errors';
 
 type QuickFilter = 'all' | 'available' | 'low' | 'out';
 
 export function InventarioTab() {
   const { products, addProduct, updateProduct, deleteProduct } = useStore();
+  const toast = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [quick, setQuick] = useState<QuickFilter>('all');
   const [editing, setEditing] = useState<Product | null>(null);
@@ -117,13 +122,13 @@ export function InventarioTab() {
                 onClick={() => setQuick(f.id)}
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
                   active
-                    ? 'border-accent-500/40 bg-accent-500/10 text-white'
-                    : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-white'
+                    ? 'border-accent-500/40 bg-accent-500/10 text-metal-100'
+                    : 'border-tint/10 text-slate-400 hover:border-tint/20 hover:text-metal-100'
                 }`}
               >
                 <Icon size={14} className={active ? 'text-accent-300' : f.color} />
                 {f.label}
-                <span className={`chip text-[10px] ${active ? 'bg-accent-500/20 text-accent-200' : 'bg-white/5 text-slate-500'}`}>
+                <span className={`chip text-[10px] ${active ? 'bg-accent-500/20 text-accent-200' : 'bg-tint/5 text-slate-500'}`}>
                   {f.count}
                 </span>
               </button>
@@ -165,21 +170,21 @@ export function InventarioTab() {
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ left: -12, right: 8, top: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2942" vertical={false} />
-              <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={70} interval={0} />
-              <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#3f424d" vertical={false} />
+              <XAxis dataKey="name" stroke="#75798c" fontSize={10} tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={70} interval={0} />
+              <YAxis stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
               <Tooltip
                 contentStyle={{
-                  background: '#0f172a',
-                  border: '1px solid #1c2942',
+                  background: '#232532',
+                  border: '1px solid #3f424d',
                   borderRadius: 12,
                   fontSize: 12,
                 }}
                 cursor={{ fill: 'rgba(255,255,255,0.03)' }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Vendido" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Stock" fill="#a78bfa" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Vendido" fill="#9184d9" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Stock" fill="#d2cefd" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -191,7 +196,7 @@ export function InventarioTab() {
           <EmptyState icon={<Boxes size={22} />} title="Sin productos que coincidan" body="Ajusta el filtro o agrega un producto." />
         </Card>
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence>
             {filtered.map((p) => {
               const total = p.sold + p.stock;
@@ -210,44 +215,55 @@ export function InventarioTab() {
                   <Card hover className="p-4 h-full">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-mono text-[11px] text-slate-500">{p.sku}</p>
-                        <p className="font-medium text-white">{p.name}</p>
+                        <p className="num text-[11px] text-slate-500">{p.sku}</p>
+                        <p className="font-medium text-metal-100">{p.name}</p>
                         <p className="text-xs text-slate-500">{p.category}</p>
                       </div>
                       <div className="flex gap-1">
                         <button
                           onClick={() => setEditing(p)}
-                          className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+                          className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-tint/5 hover:text-metal-100 transition-colors"
                         >
                           <Pencil size={13} />
                         </button>
                         <button
-                          onClick={() => deleteProduct(p.id)}
-                          className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger-400 transition-colors"
+                          disabled={deletingId === p.id}
+                          onClick={async () => {
+                            setDeletingId(p.id);
+                            try {
+                              await deleteProduct(p.id);
+                              toast.success('Producto eliminado');
+                            } catch (err) {
+                              toast.error(friendlyError(err));
+                            } finally {
+                              setDeletingId(null);
+                            }
+                          }}
+                          className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger-400 transition-colors disabled:opacity-40"
                         >
                           <Trash2 size={13} />
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       <div className="rounded-lg bg-ink-900/40 px-2.5 py-2">
                         <p className="text-[10px] uppercase text-slate-500">Precio base</p>
-                        <p className="font-mono text-slate-200">{fmtMoney(p.basePrice)}</p>
+                        <p className="num text-slate-200">{fmtMoney(p.basePrice)}</p>
                       </div>
                       <div className="rounded-lg bg-ink-900/40 px-2.5 py-2">
                         <p className="text-[10px] uppercase text-slate-500">Precio final</p>
-                        <p className="font-mono text-white">{fmtMoney(finalPrice)}</p>
+                        <p className="num text-metal-100">{fmtMoney(finalPrice)}</p>
                       </div>
                       <div className="rounded-lg bg-ink-900/40 px-2.5 py-2">
                         <p className="text-[10px] uppercase text-slate-500">Stock</p>
-                        <p className={`font-mono ${p.stock === 0 ? 'text-danger-400' : p.stock <= 5 ? 'text-warning-400' : 'text-success-500'}`}>
+                        <p className={`num ${p.stock === 0 ? 'text-danger-400' : p.stock <= 5 ? 'text-warning-400' : 'text-success-500'}`}>
                           {p.stock}
                         </p>
                       </div>
                       <div className="rounded-lg bg-ink-900/40 px-2.5 py-2">
                         <p className="text-[10px] uppercase text-slate-500">Vendido</p>
-                        <p className="font-mono text-accent-300">{p.sold}</p>
+                        <p className="num text-accent-300">{p.sold}</p>
                       </div>
                     </div>
 
@@ -258,7 +274,7 @@ export function InventarioTab() {
                           {fmtPct(rate * 100)}
                         </span>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-tint/5">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${rate * 100}%` }}
@@ -286,11 +302,16 @@ export function InventarioTab() {
           setEditing(null);
           setAdding(false);
         }}
-        onSave={(data) => {
-          if (editing) updateProduct(editing.id, data);
-          else addProduct(data as Omit<Product, 'id'>);
-          setEditing(null);
-          setAdding(false);
+        onSave={async (data) => {
+          try {
+            if (editing) await updateProduct(editing.id, data);
+            else await addProduct(data as Omit<Product, 'id'>);
+            toast.success(editing ? 'Producto actualizado' : 'Producto creado');
+            setEditing(null);
+            setAdding(false);
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
         }}
       />
     </div>
@@ -306,8 +327,9 @@ function ProductModal({
   open: boolean;
   product: Product | null;
   onClose: () => void;
-  onSave: (data: Partial<Product> | Omit<Product, 'id'>) => void;
+  onSave: (data: Partial<Product> | Omit<Product, 'id'>) => Promise<void>;
 }) {
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     sku: '',
     name: '',
@@ -339,9 +361,14 @@ function ProductModal({
   const set = (k: keyof typeof form, v: string | number) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const submit = () => {
+  const submit = async () => {
     if (!form.name || !form.sku) return;
-    onSave(form);
+    setSubmitting(true);
+    try {
+      await onSave(form);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -383,14 +410,14 @@ function ProductModal({
         </div>
         <div className="rounded-xl bg-accent-500/5 p-3 ring-1 ring-accent-500/20">
           <p className="text-xs text-slate-400">Precio final con IVA y descuento:</p>
-          <p className="mt-1 font-display text-xl font-semibold text-white">
+          <p className="mt-1 font-display text-xl font-medium text-metal-100">
             {fmtMoney(form.basePrice * (1 + form.taxPct / 100) * (1 - form.discountPct / 100))}
           </p>
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="btn-ghost">Cancelar</button>
-          <button onClick={submit} className="btn-primary">
-            {product ? 'Guardar' : 'Agregar'} producto
+          <button onClick={onClose} className="btn-ghost" disabled={submitting}>Cancelar</button>
+          <button onClick={submit} className="btn-primary" disabled={submitting}>
+            {submitting ? <Loader2 size={15} className="animate-spin" /> : `${product ? 'Guardar' : 'Agregar'} producto`}
           </button>
         </div>
       </div>

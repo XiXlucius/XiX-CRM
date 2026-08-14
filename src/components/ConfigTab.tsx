@@ -26,6 +26,8 @@ import { ROLES, NAV_ITEMS } from '../data';
 import { Card, SectionHeader, fmtDate } from './ui';
 import type { Permission, Role } from '../types';
 import type { BusinessSettings } from '../lib/scoring';
+import { useToast } from '../context/ToastContext';
+import { friendlyError } from '../lib/errors';
 
 const ROLE_ICONS: Record<Role, typeof ShieldCheck> = {
   admin: ShieldCheck,
@@ -37,8 +39,10 @@ const ROLE_ICONS: Record<Role, typeof ShieldCheck> = {
 export function ConfigTab() {
   const { settings, updateSettings, audit } = useStore();
   const currentRole = useCurrentRole();
+  const toast = useToast();
   const [form, setForm] = useState<BusinessSettings>(settings);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [backupRunning, setBackupRunning] = useState(false);
 
@@ -47,9 +51,16 @@ export function ConfigTab() {
   const set = (k: keyof BusinessSettings, v: number) => setForm((f) => ({ ...f, [k]: v }));
 
   const save = async () => {
-    await updateSettings(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    try {
+      await updateSettings(form);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const runBackup = async () => {
@@ -114,11 +125,11 @@ export function ConfigTab() {
       </Card>
 
       <div className="flex justify-end gap-2">
-        <button onClick={() => setForm(settings)} className="btn-ghost">
+        <button onClick={() => setForm(settings)} disabled={saving} className="btn-ghost">
           <RotateCcw size={15} /> Cancelar
         </button>
-        <button onClick={save} className="btn-primary">
-          {saved ? <><Check size={15} /> Guardado</> : <><Save size={15} /> Guardar parámetros</>}
+        <button onClick={save} disabled={saving} className="btn-primary">
+          {saving ? <><RefreshCw size={15} className="animate-spin" /> Guardando...</> : saved ? <><Check size={15} /> Guardado</> : <><Save size={15} /> Guardar parámetros</>}
         </button>
       </div>
 
@@ -126,9 +137,9 @@ export function ConfigTab() {
       <Card className="p-5">
         <SectionHeader title="Respaldos de datos" subtitle="Copias de seguridad de la base de datos Supabase" icon={<Server size={16} />} />
         <div className="space-y-3">
-          <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3 flex items-center justify-between">
+          <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-white">Último respaldo</p>
+              <p className="text-sm font-medium text-metal-100">Último respaldo</p>
               <p className="text-xs text-slate-500">{lastBackup ? fmtDate(lastBackup) : 'Sin respaldos registrados'}</p>
             </div>
             <button onClick={runBackup} disabled={backupRunning} className="btn-primary text-xs">
@@ -149,8 +160,8 @@ export function ConfigTab() {
       <Card className="p-5">
         <SectionHeader title="Rotación de credenciales" subtitle="Gestión de service role key y secretos" icon={<KeyRound size={16} />} />
         <div className="space-y-3">
-          <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
-            <p className="text-sm font-medium text-white">Service Role Key</p>
+          <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+            <p className="text-sm font-medium text-metal-100">Service Role Key</p>
             <p className="text-xs text-slate-500 mt-1">
               La service role key se usa solo en edge functions del lado del servidor.
               Nunca debe estar en el código del cliente.
@@ -179,9 +190,9 @@ export function ConfigTab() {
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {adminAuditEntries.map((entry) => (
-              <div key={entry.id} className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+              <div key={entry.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-white">{entry.action}</span>
+                  <span className="text-sm font-medium text-metal-100">{entry.action}</span>
                   <span className="text-[11px] text-slate-500">{fmtDate(entry.createdAt)}</span>
                 </div>
                 <p className="mt-1 text-xs text-slate-400">
@@ -200,14 +211,14 @@ export function ConfigTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+              <tr className="text-left kicker">
                 <th className="px-3 py-2.5 font-medium">Módulo</th>
                 {ROLES.map((r) => {
                   const Icon = ROLE_ICONS[r.id];
                   return (
                     <th key={r.id} className="px-3 py-2.5 font-medium text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <span className={`grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br ${r.color} text-white`}>
+                        <span className={`grid h-7 w-7 place-items-center rounded-lg bg-ink-900/60 ring-1 ring-tint/10 text-accent-300`}>
                           <Icon size={13} />
                         </span>
                         {r.label}
@@ -217,11 +228,11 @@ export function ConfigTab() {
                 })}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-tint/5">
               {NAV_ITEMS.map((item) => (
                 <tr key={item.id} className="table-row">
                   <td className="px-3 py-2.5">
-                    <p className="font-medium text-white">{item.label}</p>
+                    <p className="font-medium text-metal-100">{item.label}</p>
                     <p className="text-[11px] text-slate-500">{item.description}</p>
                   </td>
                   {ROLES.map((r) => {
@@ -233,7 +244,7 @@ export function ConfigTab() {
                             <Check size={13} />
                           </span>
                         ) : (
-                          <span className="mx-auto grid h-6 w-6 place-items-center rounded-full bg-white/5 text-slate-600">
+                          <span className="mx-auto grid h-6 w-6 place-items-center rounded-full bg-tint/5 text-slate-600">
                             <Lock size={11} />
                           </span>
                         )}
@@ -250,12 +261,12 @@ export function ConfigTab() {
       {/* Current role */}
       <Card className="p-5">
         <div className="flex items-start gap-4">
-          <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${currentRole.color} text-white`}>
+          <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300`}>
             {(() => { const Icon = ROLE_ICONS[currentRole.id]; return <Icon size={20} />; })()}
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500">Tu perfil activo</p>
-            <p className="font-display text-lg font-semibold text-white">{currentRole.label}</p>
+            <p className="kicker">Tu perfil activo</p>
+            <p className="font-display text-lg font-medium text-metal-100">{currentRole.label}</p>
             <p className="mt-1 text-sm text-slate-400">{currentRole.description}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {currentRole.permissions.map((p) => (

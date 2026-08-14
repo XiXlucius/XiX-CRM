@@ -82,7 +82,7 @@ export function AmortizationCalculator({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <TrendingDown size={15} className="text-accent-400" />
-          Total a pagar: <span className="font-mono text-white">{fmtMoney(totalPaid + downAmount)}</span>
+          Total a pagar: <span className="num text-metal-100">{fmtMoney(totalPaid + downAmount)}</span>
         </div>
         <button
           onClick={() => setShowChart((v) => !v)}
@@ -93,32 +93,32 @@ export function AmortizationCalculator({
       </div>
 
       {showChart && (
-        <div className="h-48 rounded-xl border border-white/5 bg-ink-900/40 p-3">
+        <div className="h-48 rounded-xl border border-tint/5 bg-ink-900/40 p-3">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ left: -18, right: 4, top: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2942" vertical={false} />
-              <XAxis dataKey="n" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#3f424d" vertical={false} />
+              <XAxis dataKey="n" stroke="#75798c" fontSize={9} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis stroke="#75798c" fontSize={10} tickLine={false} axisLine={false} />
               <Tooltip
                 contentStyle={{
-                  background: '#0f172a',
-                  border: '1px solid #1c2942',
+                  background: '#232532',
+                  border: '1px solid #3f424d',
                   borderRadius: 10,
                   fontSize: 11,
                 }}
                 cursor={{ fill: 'rgba(255,255,255,0.03)' }}
               />
-              <Bar dataKey="principal" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="interest" stackId="a" fill="#a78bfa" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="principal" stackId="a" fill="#9184d9" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="interest" stackId="a" fill="#d2cefd" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      <div className="max-h-72 overflow-y-auto rounded-xl border border-white/5">
+      <div className="max-h-72 overflow-y-auto rounded-xl border border-tint/5">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-ink-850 backdrop-blur-sm">
-            <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr className="text-left kicker">
               <th className="px-3 py-2.5 font-medium">#</th>
               <th className="px-3 py-2.5 font-medium">Cuota</th>
               <th className="px-3 py-2.5 font-medium">Capital</th>
@@ -126,14 +126,14 @@ export function AmortizationCalculator({
               <th className="px-3 py-2.5 font-medium text-right">Saldo</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-tint/5">
             {rows.map((r) => (
               <tr key={r.number} className="table-row">
-                <td className="px-3 py-2 font-mono text-slate-400">{r.number}</td>
-                <td className="px-3 py-2 font-mono text-white">{fmtMoney(r.payment)}</td>
-                <td className="px-3 py-2 font-mono text-accent-300">{fmtMoney(r.principal)}</td>
-                <td className="px-3 py-2 font-mono text-violet-400">{fmtMoney(r.interest)}</td>
-                <td className="px-3 py-2 font-mono text-right text-slate-300">{fmtMoney(r.balance)}</td>
+                <td className="px-3 py-2 num text-slate-400">{r.number}</td>
+                <td className="px-3 py-2 num text-metal-100">{fmtMoney(r.payment)}</td>
+                <td className="px-3 py-2 num text-accent-300">{fmtMoney(r.principal)}</td>
+                <td className="px-3 py-2 num text-violet-400">{fmtMoney(r.interest)}</td>
+                <td className="px-3 py-2 num text-right text-slate-300">{fmtMoney(r.balance)}</td>
               </tr>
             ))}
           </tbody>
@@ -165,11 +165,11 @@ function SummaryTile({
       className={`rounded-xl border p-3 ${
         highlight
           ? 'border-accent-500/30 bg-accent-500/10'
-          : 'border-white/5 bg-ink-900/40'
+          : 'border-tint/5 bg-ink-900/40'
       }`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 font-display text-lg font-semibold text-white">{value}</p>
+      <p className="kicker">{label}</p>
+      <p className="mt-1 font-display text-lg font-medium text-metal-100">{value}</p>
       {hint && <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p>}
     </div>
   );

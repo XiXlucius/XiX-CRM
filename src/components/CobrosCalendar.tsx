@@ -98,26 +98,26 @@ export function CobrosCalendar({ invoices, clients, onSelectClient }: CobrosCale
 
   return (
     <div data-tour="cobros-calendar">
-      <Card className="p-5">
+      <Card className="p-3 sm:p-5">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent-500/20 to-violet-500/20 text-accent-300">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300">
               <CalendarClock size={18} />
             </div>
             <div>
-              <h3 className="font-display text-lg font-semibold text-white">
+              <h3 className="font-display text-lg font-medium text-metal-100">
                 {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
               </h3>
               <p className="text-xs text-slate-500">Calendario de cobros</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={prevMonth} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-slate-400 hover:border-accent-500/40 hover:text-white transition-colors">
+            <button onClick={prevMonth} className="grid h-8 w-8 place-items-center rounded-lg border border-tint/10 text-slate-400 hover:border-accent-500/40 hover:text-metal-100 transition-colors">
               <ChevronLeft size={16} />
             </button>
             <button onClick={goToday} className="btn-ghost px-3 py-1.5 text-xs">Hoy</button>
-            <button onClick={nextMonth} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-slate-400 hover:border-accent-500/40 hover:text-white transition-colors">
+            <button onClick={nextMonth} className="grid h-8 w-8 place-items-center rounded-lg border border-tint/10 text-slate-400 hover:border-accent-500/40 hover:text-metal-100 transition-colors">
               <ChevronRight size={16} />
             </button>
           </div>
@@ -127,18 +127,18 @@ export function CobrosCalendar({ invoices, clients, onSelectClient }: CobrosCale
         <div className="flex flex-wrap items-center gap-4 mb-4 text-xs">
           <span className="flex items-center gap-1.5 text-slate-400">
             <span className="h-2.5 w-2.5 rounded-full bg-danger-500" /> Morosidad
-            <span className="font-mono text-danger-400">{fmtMoney(monthSummary.mTotal)}</span>
+            <span className="num text-danger-400">{fmtMoney(monthSummary.mTotal)}</span>
             <span className="text-slate-600">({monthSummary.mCount})</span>
           </span>
           <span className="flex items-center gap-1.5 text-slate-400">
             <span className="h-2.5 w-2.5 rounded-full bg-accent-500" /> Regulares
-            <span className="font-mono text-accent-300">{fmtMoney(monthSummary.rTotal)}</span>
+            <span className="num text-accent-300">{fmtMoney(monthSummary.rTotal)}</span>
             <span className="text-slate-600">({monthSummary.rCount})</span>
           </span>
         </div>
 
         {/* Weekday header */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1">
           {WEEKDAYS.map((d) => (
             <div key={d} className="text-center text-[10px] font-semibold uppercase tracking-wider text-slate-600 py-1">
               {d}
@@ -147,7 +147,7 @@ export function CobrosCalendar({ invoices, clients, onSelectClient }: CobrosCale
         </div>
 
         {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {days.map((day, i) => (
             <DayCell key={i} day={day} onClick={() => day.total > 0 && setSelectedDay(day)} />
           ))}
@@ -171,14 +171,14 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
     <button
       onClick={onClick}
       disabled={!hasActivity}
-      className={`relative flex flex-col items-stretch rounded-lg border p-1.5 min-h-[72px] sm:min-h-[88px] transition-all ${
+      className={`relative flex flex-col items-stretch rounded-lg border p-1 sm:p-1.5 min-h-[64px] sm:min-h-[88px] transition-all ${
         !day.isCurrentMonth
           ? 'border-transparent bg-transparent opacity-40'
           : day.isToday
           ? 'border-accent-500/40 bg-accent-500/5'
           : hasActivity
-          ? 'border-white/10 bg-ink-900/40 hover:border-accent-500/30 hover:bg-ink-900/70'
-          : 'border-white/5 bg-ink-900/20'
+          ? 'border-tint/10 bg-ink-900/40 hover:border-accent-500/30 hover:bg-ink-900/70'
+          : 'border-tint/5 bg-ink-900/20'
       } ${hasActivity ? 'cursor-pointer' : 'cursor-default'}`}
     >
       {/* Date number */}
@@ -203,7 +203,7 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
             </span>
           )}
           {/* Total tag */}
-          <span className="mt-auto rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 leading-tight">
+          <span className="mt-auto rounded-md bg-tint/5 px-1.5 py-0.5 text-[10px] num text-slate-400 leading-tight">
             {fmtMoneyCompact(day.total)}
           </span>
         </div>
@@ -234,23 +234,23 @@ function DayDetailModal({ day, onClose, onSelectClient }: {
           className="relative w-full max-w-lg card p-0 overflow-hidden max-h-[80vh] flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-tint/5">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent-500/20 to-violet-500/20 text-accent-300">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300">
                 <CalendarClock size={18} />
               </div>
               <div>
-                <p className="font-display text-base font-semibold text-white capitalize">{dateLabel}</p>
+                <p className="font-display text-base font-medium text-metal-100 capitalize">{dateLabel}</p>
                 <p className="text-xs text-slate-500">{day.total} cobros · {fmtMoney(day.total)}</p>
               </div>
             </div>
-            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
+            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-tint/5 hover:text-metal-100 transition-colors">
               <X size={16} />
             </button>
           </div>
 
           {/* Sections */}
-          <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+          <div className="flex-1 overflow-y-auto divide-y divide-tint/5">
             {/* Morosidad */}
             <DaySection
               title="Cobros de Morosidad"
@@ -304,7 +304,7 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
           </span>
           <span className={`chip text-[10px] ${badgeBg}`}>{count}</span>
         </div>
-        <span className="font-mono text-sm text-white">{fmtMoney(total)}</span>
+        <span className="num text-sm text-metal-100">{fmtMoney(total)}</span>
       </div>
       {count === 0 ? (
         <p className="text-xs text-slate-600 py-2">Sin cobros en esta categoría</p>
@@ -319,7 +319,7 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
                   onClose();
                 }
               }}
-              className="group flex w-full items-center justify-between rounded-lg border border-white/5 bg-ink-900/40 px-3 py-2.5 text-left transition-colors hover:border-accent-500/30 hover:bg-ink-900/70"
+              className="group flex w-full items-center justify-between rounded-lg border border-tint/5 bg-ink-900/40 px-3 py-2.5 text-left transition-colors hover:border-accent-500/30 hover:bg-ink-900/70"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${badgeBg}`}>
@@ -328,7 +328,7 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate group-hover:text-accent-200 transition-colors">
+                  <p className="text-sm font-medium text-metal-100 truncate group-hover:text-accent-200 transition-colors">
                     {invoice.clientName}
                   </p>
                   <p className="text-[11px] text-slate-500">
@@ -338,7 +338,7 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="font-mono text-sm text-white">{fmtMoney(invoice.amount)}</span>
+                <span className="num text-sm text-metal-100">{fmtMoney(invoice.amount)}</span>
                 <ArrowRight size={13} className="text-slate-600 group-hover:text-accent-400 group-hover:translate-x-0.5 transition-all" />
               </div>
             </button>

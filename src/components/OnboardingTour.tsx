@@ -109,8 +109,8 @@ export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () =
         className="z-[61] card p-5 pointer-events-auto"
       >
         <div className="flex items-start gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-violet-500">
-            <Sparkles size={17} className="text-white" />
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-900/80 ring-1 ring-accent-500/30">
+            <Sparkles size={17} className="text-metal-100" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
@@ -119,12 +119,12 @@ export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () =
               </p>
               <button
                 onClick={finish}
-                className="text-slate-500 hover:text-white transition-colors"
+                className="text-slate-500 hover:text-metal-100 transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
-            <h3 className="mt-1 font-display text-base font-semibold text-white">
+            <h3 className="mt-1 font-display text-base font-medium text-metal-100">
               {current.title}
             </h3>
             <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">
@@ -140,7 +140,7 @@ export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () =
               <span
                 key={i}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === index ? 'w-5 bg-accent-400' : 'w-1.5 bg-white/15'
+                  i === index ? 'w-5 bg-accent-400' : 'w-1.5 bg-tint/15'
                 }`}
               />
             ))}
@@ -191,11 +191,11 @@ export function TourLauncher({ onStart }: { onStart: () => void }) {
         className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 card p-4 max-w-md w-[calc(100vw-2rem)]"
       >
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-violet-500">
-            <Sparkles size={19} className="text-white" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900/80 ring-1 ring-accent-500/30">
+            <Sparkles size={19} className="text-metal-100" />
           </div>
           <div className="flex-1">
-            <h3 className="font-display text-sm font-semibold text-white">
+            <h3 className="font-display text-sm font-medium text-metal-100">
               ¿Primera vez en XiX Tech?
             </h3>
             <p className="mt-1 text-xs text-slate-400 leading-relaxed">

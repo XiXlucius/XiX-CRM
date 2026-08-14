@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
+import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { StoreProvider } from './store';
+import { StoreProvider, useStore } from './store';
+import { OrgProvider } from './context/OrgContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import Sidebar, { type NavTab } from './components/Sidebar';
@@ -8,17 +11,19 @@ import { Header } from './components/Header';
 import { NotificationBell } from './components/NotificationBell';
 import { CommandPalette } from './components/CommandPalette';
 import { OnboardingTour } from './components/OnboardingTour';
+import { ParticleField } from './components/ParticleField';
 import { DashboardTab } from './components/DashboardTab';
 import { CrmTab } from './components/CrmTab';
 import { CursoTab } from './components/CursoTab';
 import { PlaybookTab } from './components/PlaybookTab';
 import { EquipoTab } from './components/EquipoTab';
 import { FacturacionTab } from './components/FacturacionTab';
+import { RutaCobroTab } from './components/RutaCobroTab';
 import { InventarioTab } from './components/InventarioTab';
 import { ConfigTab } from './components/ConfigTab';
 import { ReportesTab } from './components/ReportesTab';
 import { AuditoriaTab } from './components/AuditoriaTab';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle, RotateCw } from 'lucide-react';
 
 function parseOobCode(): { mode: string; oobCode: string } | null {
   const params = new URLSearchParams(window.location.search);
@@ -38,6 +43,7 @@ function AppShell() {
   const [tourOpen, setTourOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [crmInitialClient, setCrmInitialClient] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -61,31 +67,61 @@ function AppShell() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar active={activeTab} onNavigate={navigate} />
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <Header
-          onOpenTour={() => setTourOpen(true)}
-          notificationSlot={<NotificationBell onNavigate={navigate} />}
-        />
-        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain">
-          {activeTab === 'dashboard'  && <DashboardTab />}
-          {activeTab === 'crm'        && <CrmTab initialClientId={crmInitialClient} />}
-          {activeTab === 'courses'    && <CursoTab />}
-          {activeTab === 'playbook'   && <PlaybookTab />}
-          {activeTab === 'equipo'     && <EquipoTab />}
-          {activeTab === 'facturacion'&& <FacturacionTab onSelectClient={selectClient} />}
-          {activeTab === 'inventario' && <InventarioTab />}
-          {activeTab === 'config'     && <ConfigTab />}
-          {activeTab === 'reportes'   && <ReportesTab />}
-          {activeTab === 'auditoria'  && <AuditoriaTab />}
-        </main>
-      </div>
+    <>
+      {/* Nocturne: reemplaza el gradiente + rejilla que pintaba body::before */}
+      <ParticleField density={1} intensity={30} />
 
-      <CommandPalette onNavigate={navigate} onSelectClient={selectClient} />
-      <OnboardingTour open={tourOpen} onClose={() => setTourOpen(false)} />
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar active={activeTab} onNavigate={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <Header
+            onOpenTour={() => setTourOpen(true)}
+            onOpenSidebar={() => setSidebarOpen(true)}
+            notificationSlot={<NotificationBell onNavigate={navigate} />}
+          />
+          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-5 sm:px-6">
+            {activeTab === 'dashboard'  && <DashboardTab />}
+            {activeTab === 'crm'        && <CrmTab initialClientId={crmInitialClient} />}
+            {activeTab === 'courses'    && <CursoTab />}
+            {activeTab === 'playbook'   && <PlaybookTab />}
+            {activeTab === 'equipo'     && <EquipoTab />}
+            {activeTab === 'facturacion'&& <FacturacionTab onSelectClient={selectClient} />}
+            {activeTab === 'ruta'       && <RutaCobroTab />}
+            {activeTab === 'inventario' && <InventarioTab />}
+            {activeTab === 'config'     && <ConfigTab />}
+            {activeTab === 'reportes'   && <ReportesTab />}
+            {activeTab === 'auditoria'  && <AuditoriaTab />}
+          </main>
+        </div>
+
+        <CommandPalette onNavigate={navigate} onSelectClient={selectClient} />
+        <OnboardingTour open={tourOpen} onClose={() => setTourOpen(false)} />
+      </div>
+    </>
+  );
+}
+
+function LoadErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="text-center max-w-sm">
+        <div className="mx-auto h-12 w-12 rounded-lg border grid place-items-center mb-4" style={{ borderColor: '#d09090' }}>
+          <AlertTriangle size={22} style={{ color: '#d09090' }} />
+        </div>
+        <p className="font-display text-lg font-medium text-metal-100 mb-1">No se pudieron cargar los datos</p>
+        <p className="text-sm text-metal-500 mb-6">{message}</p>
+        <button onClick={onRetry} className="btn-primary">
+          <RotateCw size={15} /> Reintentar
+        </button>
+      </div>
     </div>
   );
+}
+
+function AppGate() {
+  const { loadError, retryLoad } = useStore();
+  if (loadError) return <LoadErrorScreen message={loadError} onRetry={retryLoad} />;
+  return <AppShell />;
 }
 
 function AppInner() {
@@ -96,10 +132,10 @@ function AppInner() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-600 grid place-items-center shadow-glow-cyan mb-4">
-            <Loader2 size={22} className="text-white animate-spin" />
+          <div className="mx-auto h-12 w-12 rounded-lg border border-accent grid place-items-center mb-4">
+            <Loader2 size={22} className="text-accent animate-spin" />
           </div>
-          <p className="text-sm text-metal-500 animate-pulse">Cargando XiX Tech...</p>
+          <p className="text-sm text-metal-500">Cargando XiX Tech...</p>
         </div>
       </div>
     );
@@ -109,15 +145,21 @@ function AppInner() {
   if (!user) return <AuthScreen />;
   return (
     <StoreProvider>
-      <AppShell />
+      <OrgProvider>
+        <AppGate />
+      </OrgProvider>
     </StoreProvider>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppInner />
-    </AuthProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider>
+          <AppInner />
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }

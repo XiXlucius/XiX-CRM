@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   Users,
   LayoutGrid,
@@ -40,8 +42,11 @@ import {
   NumberInput,
 } from './ui';
 import { AmortizationCalculator } from './AmortizationCalculator';
+import { ScoreRing } from './ScoreRing';
 import { assessRisk, RISK_BAND_STYLES, RECOMMENDATION_STYLES, TENURE_OPTIONS, type BusinessSettings } from '../lib/scoring';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../context/ToastContext';
+import { friendlyError } from '../lib/errors';
 
 const MUNI_LABELS: Record<Municipality, string> = {
   libertador: 'Libertador',
@@ -70,6 +75,7 @@ const STATUSES: ClientStatus[] = [
 
 export function CrmTab({ initialClientId }: { initialClientId?: string | null }) {
   const { clients, invoices, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
+  const toast = useToast();
   const [view, setView] = useState<'grid' | 'list' | 'map'>('grid');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
@@ -98,6 +104,9 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
       await generateSchedule(clientId);
       const updated = clients.find((c) => c.id === clientId);
       if (updated) setSelected({ ...updated, status: 'activo' });
+      toast.success('Plan de pagos generado');
+    } catch (err) {
+      toast.error(friendlyError(err));
     } finally {
       setGenerating(null);
     }
@@ -173,7 +182,7 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
               <option key={a} value={a}>{a === 'all' ? 'Todos los agentes' : a}</option>
             ))}
           </select>
-          <div className="flex rounded-xl border border-white/10 p-0.5">
+          <div className="flex rounded-xl border border-tint/10 p-0.5">
             <button onClick={() => setView('grid')} className={`grid h-8 w-8 place-items-center rounded-lg transition-colors ${view === 'grid' ? 'bg-accent-500/20 text-accent-300' : 'text-slate-400'}`}>
               <LayoutGrid size={15} />
             </button>
@@ -202,38 +211,46 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
           </AnimatePresence>
         </div>
       ) : view === 'list' ? (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-ink-850">
-                <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Producto</th>
-                  <th className="px-4 py-3 font-medium">Municipio</th>
-                  <th className="px-4 py-3 font-medium">Agente</th>
-                  <th className="px-4 py-3 font-medium">Financiado</th>
-                  <th className="px-4 py-3 font-medium">Score</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="table-row">
-                    <td className="px-4 py-3"><p className="font-medium text-white">{c.fullName}</p><p className="text-xs text-slate-500">{c.cedula}</p></td>
-                    <td className="px-4 py-3 text-slate-300">{c.product}</td>
-                    <td className="px-4 py-3 text-slate-400">{MUNI_LABELS[c.municipality]}</td>
-                    <td className="px-4 py-3 text-slate-400">{c.assignedAgent}</td>
-                    <td className="px-4 py-3 font-mono text-slate-300">{fmtMoney(c.productCost * (1 - c.downPaymentPct / 100))}</td>
-                    <td className="px-4 py-3"><RiskBadge score={c.riskScore} /></td>
-                    <td className="px-4 py-3"><StatusChip status={c.status} /></td>
-                    <td className="px-4 py-3 text-right"><button onClick={() => setSelected(c)} className="btn-ghost px-2.5 py-1.5 text-xs">Ver</button></td>
+        <>
+          <Card className="hidden lg:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-ink-850">
+                  <tr className="text-left kicker">
+                    <th className="px-4 py-3 font-medium">Cliente</th>
+                    <th className="px-4 py-3 font-medium">Producto</th>
+                    <th className="px-4 py-3 font-medium">Municipio</th>
+                    <th className="px-4 py-3 font-medium">Agente</th>
+                    <th className="px-4 py-3 font-medium">Financiado</th>
+                    <th className="px-4 py-3 font-medium">Score</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
+                    <th className="px-4 py-3 font-medium text-right">Acción</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-tint/5">
+                  {filtered.map((c) => (
+                    <tr key={c.id} className="table-row">
+                      <td className="px-4 py-3"><p className="font-medium text-metal-100">{c.fullName}</p><p className="text-xs text-slate-500">{c.cedula}</p></td>
+                      <td className="px-4 py-3 text-slate-300">{c.product}</td>
+                      <td className="px-4 py-3 text-slate-400">{MUNI_LABELS[c.municipality]}</td>
+                      <td className="px-4 py-3 text-slate-400">{c.assignedAgent}</td>
+                      <td className="px-4 py-3 num text-slate-300">{fmtMoney(c.productCost * (1 - c.downPaymentPct / 100))}</td>
+                      <td className="px-4 py-3"><RiskBadge score={c.riskScore} /></td>
+                      <td className="px-4 py-3"><StatusChip status={c.status} /></td>
+                      <td className="px-4 py-3 text-right"><button onClick={() => setSelected(c)} className="btn-ghost px-2.5 py-1.5 text-xs">Ver</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          {/* Vista de tarjetas en móvil/tablet — mismos datos y acción que la tabla */}
+          <div className="lg:hidden space-y-3">
+            {filtered.map((c) => (
+              <ClientCard key={c.id} client={c} onOpen={() => setSelected(c)} />
+            ))}
           </div>
-        </Card>
+        </>
       ) : (
         <ClientMap clients={filtered} onOpen={(c) => setSelected(c)} />
       )}
@@ -242,14 +259,40 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
         open={formOpen}
         onClose={() => setFormOpen(false)}
         settings={settings}
-        onSave={async (data) => { await addClient(data); setFormOpen(false); }}
+        onSave={async (data) => {
+          try {
+            await addClient(data);
+            toast.success('Cliente guardado');
+            setFormOpen(false);
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
       />
 
       <ClientDetailModal
         client={selected}
         onClose={() => setSelected(null)}
-        onUpdate={(patch) => { if (selected) { updateClient(selected.id, patch); setSelected({ ...selected, ...patch }); } }}
-        onAddNote={(entry) => { if (selected) addBitacora(selected.id, entry); }}
+        onUpdate={async (patch) => {
+          if (!selected) return;
+          const previous = selected;
+          setSelected({ ...selected, ...patch }); // optimista
+          try {
+            await updateClient(selected.id, patch);
+          } catch (err) {
+            setSelected(previous); // revertir
+            toast.error(friendlyError(err));
+          }
+        }}
+        onAddNote={async (entry) => {
+          if (!selected) return;
+          try {
+            await addBitacora(selected.id, entry);
+            toast.success('Nota agregada');
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
         onGenerateSchedule={handleGenerate}
         generating={generating}
         documents={selected ? documents.filter((d) => d.clientId === selected.id) : []}
@@ -258,11 +301,46 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
         lateFees={selected ? lateFees.filter((f) => f.clientId === selected.id) : []}
         invoices={selected ? invoices.filter((i) => i.clientId === selected.id) : []}
         templates={templates}
-        onUploadDoc={uploadDocument}
-        onDeleteDoc={deleteDocument}
-        onAddPartialPayment={addPartialPayment}
-        onAddRenegotiation={addRenegotiation}
-        onSendWhatsApp={sendWhatsApp}
+        onUploadDoc={async (clientId, file, type) => {
+          try {
+            await uploadDocument(clientId, file, type);
+            toast.success('Documento subido');
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
+        onDeleteDoc={async (id) => {
+          try {
+            await deleteDocument(id);
+            toast.success('Documento eliminado');
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
+        onAddPartialPayment={async (invoiceId, amount, paymentDate, note) => {
+          try {
+            await addPartialPayment(invoiceId, amount, paymentDate, note);
+            toast.success('Abono registrado');
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
+        onAddRenegotiation={async (clientId, newTermMonths, newInterestRate, newFrequency, reason) => {
+          try {
+            await addRenegotiation(clientId, newTermMonths, newInterestRate, newFrequency, reason);
+            toast.success('Renegociación aplicada');
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
+        onSendWhatsApp={async (phone, message) => {
+          try {
+            await sendWhatsApp(phone, message);
+            toast.success('Mensaje enviado');
+          } catch (err) {
+            toast.error(friendlyError(err));
+          }
+        }}
       />
 
       <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title="Calculadora de amortización" size="lg">
@@ -301,12 +379,11 @@ function RiskPreview({ form, settings }: { form: Record<string, unknown>; settin
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck size={16} className={bandMeta.color} />
-          <span className="text-sm font-semibold text-white">Análisis de riesgo crediticio</span>
+          <span className="text-sm font-semibold text-metal-100">Análisis de riesgo crediticio</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className={`chip ${bandMeta.bg} ${bandMeta.color}`}>{bandMeta.label}</span>
-          <span className="font-mono text-lg font-semibold text-white">{assessment.score}</span>
-          <span className="text-xs text-slate-500">/100</span>
+          <ScoreRing value={assessment.score} size={40} label="Score de riesgo" />
         </div>
       </div>
       {assessment.prohibited && (
@@ -348,11 +425,11 @@ function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) 
       <Card hover className="p-4 h-full">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent-500/20 to-sky-500/20 text-accent-300 font-semibold text-sm">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300 font-semibold text-sm">
               {client.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
             </div>
             <div>
-              <p className="font-medium text-white">{client.fullName}</p>
+              <p className="font-medium text-metal-100">{client.fullName}</p>
               <p className="text-xs text-slate-500">{client.cedula}</p>
             </div>
           </div>
@@ -365,8 +442,8 @@ function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) 
         <div className="mt-3 flex items-center justify-between">
           <RiskBadge score={client.riskScore} />
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-slate-500">Financiado</p>
-            <p className="font-mono text-sm text-white">{fmtMoney(financed)}</p>
+            <p className="kicker">Financiado</p>
+            <p className="num text-sm text-metal-100">{fmtMoney(financed)}</p>
           </div>
         </div>
       </Card>
@@ -377,41 +454,53 @@ function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) 
 // ---------- Client map (geolocation) ----------
 
 function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client) => void }) {
-  const clientsWithCoords = clients.map((c) => ({
+  // Ubicación real si el cliente la tiene (latitude/longitude); si no, centro real del
+  // municipio (MUNI_COORDS) con una dispersión pequeña — nunca una geometría inventada.
+  const clientsWithCoords = useMemo(() => clients.map((c) => ({
     client: c,
     lat: c.latitude ?? MUNI_COORDS[c.municipality].lat + (Math.random() - 0.5) * 0.02,
     lng: c.longitude ?? MUNI_COORDS[c.municipality].lng + (Math.random() - 0.5) * 0.02,
-  }));
+    approx: c.latitude == null,
+  })), [clients]);
 
   const statusColors: Record<string, string> = {
-    prospecto: '#64748b',
-    en_revision: '#f59e0b',
-    aprobado: '#0ea5e9',
-    activo: '#10b981',
-    en_mora: '#ef4444',
-    rechazado: '#9f1239',
+    prospecto: '#75798c',
+    en_revision: '#c9ae7d',
+    aprobado: '#b5abfc',
+    activo: '#86b298',
+    en_mora: '#d09090',
+    rechazado: '#595d6c',
   };
 
   return (
     <Card className="p-5">
       <SectionHeader title="Mapa de clientes" subtitle={`${clientsWithCoords.length} clientes geolocalizados`} icon={<MapPin size={16} />} />
-      <div className="relative h-[480px] rounded-xl overflow-hidden bg-ink-900/60 border border-white/5">
-        <svg viewBox="10.35 -67.0 0.25 0.25" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
-          <rect x="10.35" y="-67.0" width="0.25" height="0.25" fill="#0a1120" />
-          <path d="M 10.42 -66.92 L 10.48 -66.88 L 10.50 -66.85 L 10.47 -66.82 L 10.43 -66.84 L 10.40 -66.88 Z" fill="#0f1929" stroke="#1c2942" strokeWidth="0.002" />
-          {clientsWithCoords.map(({ client, lat, lng }) => {
-            const x = ((lng - 10.35) / 0.25) * 100;
-            const y = ((-67.0 - lat) / 0.25) * 100 + 100;
-            const color = statusColors[client.status] ?? '#64748b';
+      <div className="relative h-[480px] rounded-xl overflow-hidden border border-tint/5 [&_.leaflet-tile-pane]:invert [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:saturate-75 [&_.leaflet-control-attribution]:!bg-ink-900/70 [&_.leaflet-control-attribution]:!text-slate-500">
+        <MapContainer center={[10.475, -66.865]} zoom={11} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <TileLayer
+            attribution="&copy; OpenStreetMap contributors"
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {clientsWithCoords.map(({ client, lat, lng, approx }) => {
+            const color = statusColors[client.status] ?? '#75798c';
             return (
-              <g key={client.id} onClick={() => onOpen(client)} style={{ cursor: 'pointer' }}>
-                <circle cx={x} cy={y} r="1.2" fill={color} fillOpacity="0.8" stroke={color} strokeWidth="0.3" />
-                <circle cx={x} cy={y} r="2.5" fill={color} fillOpacity="0.15" />
-              </g>
+              <CircleMarker
+                key={client.id}
+                center={[lat, lng]}
+                radius={7}
+                pathOptions={{ color, fillColor: color, fillOpacity: 0.75, weight: 1.5 }}
+                eventHandlers={{ click: () => onOpen(client) }}
+              >
+                <Popup>
+                  <b>{client.fullName}</b><br />
+                  {client.product}<br />
+                  {approx && <span style={{ opacity: 0.6 }}>Ubicación aproximada (sin coordenadas guardadas)</span>}
+                </Popup>
+              </CircleMarker>
             );
           })}
-        </svg>
-        <div className="absolute bottom-3 left-3 flex flex-wrap gap-2 bg-ink-900/80 backdrop-blur rounded-xl p-2 border border-white/5">
+        </MapContainer>
+        <div className="absolute bottom-3 left-3 z-[1000] flex flex-wrap gap-2 bg-ink-900/80 backdrop-blur rounded-xl p-2 border border-tint/5 pointer-events-none">
           {Object.entries(statusColors).map(([status, color]) => (
             <div key={status} className="flex items-center gap-1.5 text-[10px] text-slate-400">
               <span className="h-2 w-2 rounded-full" style={{ background: color }} />
@@ -494,7 +583,7 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
         </div>
 
         {/* Risk questions */}
-        <div className="pt-2 border-t border-white/5">
+        <div className="pt-2 border-t border-tint/5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Evaluación de riesgo</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
@@ -526,14 +615,14 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
                 <button
                   type="button"
                   onClick={() => set('hasPhysicalId', true)}
-                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors ${form.hasPhysicalId ? 'border-success-500/40 bg-success/10 text-success-500' : 'border-white/5 bg-ink-900/40 text-slate-400'}`}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors ${form.hasPhysicalId ? 'border-success-500/40 bg-success/10 text-success-500' : 'border-tint/5 bg-ink-900/40 text-slate-400'}`}
                 >
                   Sí
                 </button>
                 <button
                   type="button"
                   onClick={() => set('hasPhysicalId', false)}
-                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors ${!form.hasPhysicalId ? 'border-danger/40 bg-danger/10 text-danger-400' : 'border-white/5 bg-ink-900/40 text-slate-400'}`}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors ${!form.hasPhysicalId ? 'border-danger/40 bg-danger/10 text-danger-400' : 'border-tint/5 bg-ink-900/40 text-slate-400'}`}
                 >
                   No
                 </button>
@@ -547,7 +636,7 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
           </div>
         </div>
 
-        <div className="pt-2 border-t border-white/5">
+        <div className="pt-2 border-t border-tint/5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Datos del crédito</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <div><label className="label">Producto</label><input className="input" value={form.product} onChange={(e) => set('product', e.target.value)} /></div>
@@ -593,15 +682,15 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
           </div>
 
           {/* Equal installments toggle */}
-          <div className="mt-3 rounded-xl border border-white/5 bg-ink-900/40 p-3 space-y-3">
+          <div className="mt-3 rounded-xl border border-tint/5 bg-ink-900/40 p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={equalInstallments}
                 onChange={(e) => setEqualInstallments(e.target.checked)}
-                className="h-4 w-4 rounded border-white/20 bg-ink-900 text-accent-500 focus:ring-accent-500/40"
+                className="h-4 w-4 rounded border-tint/20 bg-ink-900 text-accent-500 focus:ring-accent-500/40"
               />
-              <span className="text-sm text-white">Cuotas exactamente iguales</span>
+              <span className="text-sm text-metal-100">Cuotas exactamente iguales</span>
               <span className="text-[11px] text-slate-500">— divide el total en cuotas del mismo monto</span>
             </label>
             {equalInstallments && (
@@ -674,9 +763,9 @@ function ClientDetailModal({
 
   if (!client) return null;
 
-  const submitNote = () => {
+  const submitNote = async () => {
     if (!note.trim()) return;
-    onAddNote({ author: 'Vendedor', channel, note: note.trim(), outcome });
+    await onAddNote({ author: 'Vendedor', channel, note: note.trim(), outcome });
     setNote('');
   };
 
@@ -732,7 +821,7 @@ function ClientDetailModal({
             <div className="flex items-center gap-2">
               <CalendarClock size={16} className="text-accent-300" />
               <div>
-                <p className="text-sm font-medium text-white">Generar cronograma de cuotas</p>
+                <p className="text-sm font-medium text-metal-100">Generar cronograma de cuotas</p>
                 <p className="text-xs text-slate-500">Crea automáticamente las facturas según el plan de amortización</p>
               </div>
             </div>
@@ -756,7 +845,7 @@ function ClientDetailModal({
             { id: 'reneg', label: 'Renegociación' },
             { id: 'late', label: 'Mora' },
           ] as const).map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${tab === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-white'}`}>{t.label}</button>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${tab === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-metal-100'}`}>{t.label}</button>
           ))}
         </div>
 
@@ -785,7 +874,7 @@ function ClientDetailModal({
 
             {/* WhatsApp quick send */}
             <div className="rounded-xl border border-success-500/20 bg-success/5 p-3 space-y-2">
-              <p className="text-sm font-medium text-white flex items-center gap-2">
+              <p className="text-sm font-medium text-metal-100 flex items-center gap-2">
                 <MessageSquare size={14} className="text-success-500" /> WhatsApp
               </p>
               <div className="flex flex-wrap gap-2">
@@ -824,7 +913,7 @@ function ClientDetailModal({
 
         {tab === 'bitacora' && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3 space-y-2">
+            <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 space-y-2">
               <div className="flex flex-wrap gap-2">
                 <select className="input w-auto" value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)}>
                   <option value="whatsapp">WhatsApp</option><option value="llamada">Llamada</option><option value="visita">Visita</option><option value="email">Email</option>
@@ -841,7 +930,7 @@ function ClientDetailModal({
                 <EmptyState icon={<StickyNote size={20} />} title="Sin notas en la bitácora" />
               ) : (
                 client.bitacora.map((b) => (
-                  <div key={b.id} className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+                  <div key={b.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-accent-300">{b.channel} · {b.outcome}</span>
                       <span className="text-[11px] text-slate-500">{fmtDate(b.date)}</span>
@@ -857,7 +946,7 @@ function ClientDetailModal({
 
         {tab === 'docs' && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+            <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
               <input ref={fileRef} type="file" onChange={handleUpload} className="hidden" />
               <button
                 onClick={() => fileRef.current?.click()}
@@ -873,11 +962,11 @@ function ClientDetailModal({
             ) : (
               <div className="space-y-2">
                 {documents.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-ink-900/40 p-3">
+                  <div key={d.id} className="flex items-center justify-between rounded-xl border border-tint/5 bg-ink-900/40 p-3">
                     <div className="flex items-center gap-2">
                       <FileText size={15} className="text-accent-300" />
                       <div>
-                        <p className="text-sm text-white">{d.name}</p>
+                        <p className="text-sm text-metal-100">{d.name}</p>
                         <p className="text-[11px] text-slate-500">{d.type} · {(d.sizeBytes / 1024).toFixed(0)} KB · {fmtDate(d.createdAt)}</p>
                       </div>
                     </div>
@@ -905,7 +994,7 @@ function ClientDetailModal({
           <div className="space-y-3">
             <div className="rounded-xl border border-accent-500/20 bg-accent-500/5 p-3">
               <p className="text-sm text-slate-300">
-                <DollarSign size={14} className="inline text-accent-300" /> Total pagado en parcialidades: <span className="font-mono text-white">{fmtMoney(totalPartial)}</span>
+                <DollarSign size={14} className="inline text-accent-300" /> Total pagado en parcialidades: <span className="num text-metal-100">{fmtMoney(totalPartial)}</span>
               </p>
             </div>
             {invoices.length === 0 ? (
@@ -917,19 +1006,19 @@ function ClientDetailModal({
                   const paid = invPartials.reduce((a, p) => a + p.amount, 0);
                   const remaining = inv.amount - paid;
                   return (
-                    <div key={inv.id} className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+                    <div key={inv.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-white">{inv.isDownPayment ? 'Inicial' : `Cuota ${inv.installmentNumber}/${inv.totalInstallments}`}</p>
+                          <p className="text-sm text-metal-100">{inv.isDownPayment ? 'Inicial' : `Cuota ${inv.installmentNumber}/${inv.totalInstallments}`}</p>
                           <p className="text-[11px] text-slate-500">Vence {fmtDateShort(inv.dueDate)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-sm text-white">{fmtMoney(inv.amount)}</p>
+                          <p className="num text-sm text-metal-100">{fmtMoney(inv.amount)}</p>
                           {paid > 0 && <p className="text-[11px] text-success-500">Pagado: {fmtMoney(paid)}</p>}
                         </div>
                       </div>
                       {paid > 0 && (
-                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-tint/5">
                           <div className="h-full rounded-full bg-success-500" style={{ width: `${Math.min((paid / inv.amount) * 100, 100)}%` }} />
                         </div>
                       )}
@@ -938,7 +1027,7 @@ function ClientDetailModal({
                           {invPartials.map((p) => (
                             <div key={p.id} className="flex items-center justify-between text-[11px] text-slate-400">
                               <span>{fmtDateShort(p.paymentDate)} {p.note && `· ${p.note}`}</span>
-                              <span className="font-mono text-success-500">{fmtMoney(p.amount)}</span>
+                              <span className="num text-success-500">{fmtMoney(p.amount)}</span>
                             </div>
                           ))}
                         </div>
@@ -973,10 +1062,10 @@ function ClientDetailModal({
 
         {tab === 'reneg' && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+            <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white">Renegociar deuda</p>
+                  <p className="text-sm font-medium text-metal-100">Renegociar deuda</p>
                   <p className="text-xs text-slate-500">Reestructura el plan del cliente conservando el historial</p>
                 </div>
                 <button onClick={() => setRenegOpen(true)} className="btn-primary text-xs">
@@ -989,15 +1078,15 @@ function ClientDetailModal({
             ) : (
               <div className="space-y-2">
                 {renegotiations.map((r) => (
-                  <div key={r.id} className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+                  <div key={r.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-accent-300">{fmtDate(r.createdAt)}</span>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-400">
-                      <p>Plazo: {r.oldTermMonths} → <span className="text-white">{r.newTermMonths} meses</span></p>
-                      <p>Tasa: {r.oldInterestRate}% → <span className="text-white">{r.newInterestRate}%</span></p>
-                      <p>Frec: {r.oldFrequency} → <span className="text-white">{r.newFrequency}</span></p>
-                      <p>Saldo: <span className="font-mono text-white">{fmtMoney(r.outstandingBalance)}</span></p>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-400">
+                      <p>Plazo: {r.oldTermMonths} → <span className="text-metal-100">{r.newTermMonths} meses</span></p>
+                      <p>Tasa: {r.oldInterestRate}% → <span className="text-metal-100">{r.newInterestRate}%</span></p>
+                      <p>Frec: {r.oldFrequency} → <span className="text-metal-100">{r.newFrequency}</span></p>
+                      <p>Saldo: <span className="num text-metal-100">{fmtMoney(r.outstandingBalance)}</span></p>
                     </div>
                     {r.reason && <p className="mt-2 text-xs text-slate-500 italic">"{r.reason}"</p>}
                   </div>
@@ -1021,9 +1110,9 @@ function ClientDetailModal({
           <div className="space-y-3">
             <div className="rounded-xl border border-danger/20 bg-danger/5 p-3">
               <p className="text-sm text-slate-300">
-                <AlertCircle size={14} className="inline text-danger-400" /> Cargo automático: <span className="font-mono text-white">$4/semana</span> tras 3 días de gracia
+                <AlertCircle size={14} className="inline text-danger-400" /> Cargo automático: <span className="num text-metal-100">$4/semana</span> tras 3 días de gracia
               </p>
-              <p className="mt-1 text-xs text-slate-500">Total acumulado en mora: <span className="font-mono text-danger-400">{fmtMoney(totalLateFees)}</span></p>
+              <p className="mt-1 text-xs text-slate-500">Total acumulado en mora: <span className="num text-danger-400">{fmtMoney(totalLateFees)}</span></p>
             </div>
             {lateFees.length === 0 ? (
               <EmptyState icon={<AlertCircle size={20} />} title="Sin cargos por mora" body="Los cargos se aplican automáticamente a facturas vencidas." />
@@ -1032,10 +1121,10 @@ function ClientDetailModal({
                 {lateFees.map((f) => (
                   <div key={f.id} className="flex items-center justify-between rounded-xl border border-danger/10 bg-danger/5 p-3">
                     <div>
-                      <p className="text-sm text-white">Semana {f.weekNumber}</p>
+                      <p className="text-sm text-metal-100">Semana {f.weekNumber}</p>
                       <p className="text-[11px] text-slate-500">Aplicado {fmtDate(f.appliedAt)}</p>
                     </div>
-                    <span className="font-mono text-danger-400">+{fmtMoney(f.amount)}</span>
+                    <span className="num text-danger-400">+{fmtMoney(f.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -1092,14 +1181,14 @@ function PartialPaymentModal({
   return (
     <Modal open={true} onClose={onClose} title="Registrar pagos parciales" size="md">
       <div className="space-y-3">
-        <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3 text-sm">
-          <div className="flex justify-between"><span className="text-slate-400">Monto de la factura:</span><span className="font-mono text-white">{fmtMoney(invoiceAmount)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Ya pagado:</span><span className="font-mono text-success-500">{fmtMoney(alreadyPaid)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Restante:</span><span className="font-mono text-warning-400">{fmtMoney(remaining)}</span></div>
+        <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 text-sm">
+          <div className="flex justify-between"><span className="text-slate-400">Monto de la factura:</span><span className="num text-metal-100">{fmtMoney(invoiceAmount)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Ya pagado:</span><span className="num text-success-500">{fmtMoney(alreadyPaid)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Restante:</span><span className="num text-warning-400">{fmtMoney(remaining)}</span></div>
         </div>
 
         {payments.map((p, i) => (
-          <div key={i} className="rounded-xl border border-white/5 bg-ink-900/40 p-3 space-y-2">
+          <div key={i} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-400">Pago #{i + 1}</span>
               {payments.length > 1 && (
@@ -1108,7 +1197,7 @@ function PartialPaymentModal({
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="label">Monto ($)</label>
                 <input type="number" className="input" value={p.amount} onChange={(e) => update(i, 'amount', e.target.value)} />
@@ -1132,11 +1221,11 @@ function PartialPaymentModal({
         <div className={`rounded-xl border p-3 text-sm ${exceeds ? 'border-danger/30 bg-danger/5 text-danger-400' : meetsTotal ? 'border-success-500/30 bg-success/5 text-success-500' : 'border-warning/30 bg-warning/5 text-warning-400'}`}>
           <div className="flex justify-between">
             <span>Total ingresado:</span>
-            <span className="font-mono">{fmtMoney(totalEntered)}</span>
+            <span className="num">{fmtMoney(totalEntered)}</span>
           </div>
           <div className="flex justify-between">
             <span>Restante:</span>
-            <span className="font-mono">{fmtMoney(remaining - totalEntered)}</span>
+            <span className="num">{fmtMoney(remaining - totalEntered)}</span>
           </div>
           {exceeds && <p className="mt-1 text-xs">El total excede el monto restante. Ajusta los montos.</p>}
           {!exceeds && !meetsTotal && <p className="mt-1 text-xs">Debes cumplir el monto total restante ({fmtMoney(remaining)}). Faltan {fmtMoney(remaining - totalEntered)}.</p>}
@@ -1173,10 +1262,10 @@ function RenegotiationModal({
   return (
     <Modal open={true} onClose={onClose} title="Renegociar deuda" size="md">
       <div className="space-y-3">
-        <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3 text-sm">
-          <div className="flex justify-between"><span className="text-slate-400">Cliente:</span><span className="text-white">{client.fullName}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Saldo pendiente:</span><span className="font-mono text-white">{fmtMoney(outstanding)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Plan actual:</span><span className="text-white">{client.termMonths} meses · {client.interestRate}% · {client.frequency}</span></div>
+        <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 text-sm">
+          <div className="flex justify-between"><span className="text-slate-400">Cliente:</span><span className="text-metal-100">{client.fullName}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Saldo pendiente:</span><span className="num text-metal-100">{fmtMoney(outstanding)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Plan actual:</span><span className="text-metal-100">{client.termMonths} meses · {client.interestRate}% · {client.frequency}</span></div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3">
           <div><label className="label">Nuevo plazo (meses)</label><input type="number" className="input" value={newTerm} onChange={(e) => setNewTerm(+e.target.value)} /></div>
@@ -1206,18 +1295,38 @@ function TemplatesModal({
   onSave: (t: Omit<MessageTemplate, 'id' | 'createdAt'>) => Promise<void>;
 }) {
   const { addTemplate, updateTemplate, deleteTemplate } = useStore();
+  const toast = useToast();
   const [editing, setEditing] = useState<MessageTemplate | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: '', channel: 'whatsapp' as MessageTemplate['channel'], clientStatus: '', subject: '', body: '' });
 
   const submit = async () => {
     if (!form.name || !form.body) return;
-    if (editing) {
-      await updateTemplate(editing.id, form);
-    } else {
-      await addTemplate(form);
+    setSubmitting(true);
+    try {
+      if (editing) {
+        await updateTemplate(editing.id, form);
+        toast.success('Plantilla actualizada');
+      } else {
+        await addTemplate(form);
+        toast.success('Plantilla creada');
+      }
+      setForm({ name: '', channel: 'whatsapp', clientStatus: '', subject: '', body: '' });
+      setEditing(null);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setSubmitting(false);
     }
-    setForm({ name: '', channel: 'whatsapp', clientStatus: '', subject: '', body: '' });
-    setEditing(null);
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await deleteTemplate(id);
+      toast.success('Plantilla eliminada');
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
   };
 
   const startEdit = (t: MessageTemplate) => {
@@ -1228,7 +1337,7 @@ function TemplatesModal({
   return (
     <Modal open={open} onClose={onClose} title="Plantillas de mensajes" size="lg">
       <div className="space-y-4">
-        <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3 space-y-2">
+        <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 space-y-2">
           <p className="text-xs text-slate-500">Variables disponibles: {'{nombre}'}, {'{producto}'}, {'{monto}'}, {'{fecha}'}</p>
           <div className="grid sm:grid-cols-2 gap-2">
             <input className="input" placeholder="Nombre de plantilla" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
@@ -1246,8 +1355,8 @@ function TemplatesModal({
           <textarea className="input min-h-[80px]" placeholder="Cuerpo del mensaje..." value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
           <div className="flex justify-end gap-2">
             {editing && <button onClick={() => { setEditing(null); setForm({ name: '', channel: 'whatsapp', clientStatus: '', subject: '', body: '' }); }} className="btn-ghost text-xs">Cancelar edición</button>}
-            <button onClick={submit} className="btn-primary text-xs">
-              {editing ? 'Guardar cambios' : 'Crear plantilla'}
+            <button onClick={submit} disabled={submitting} className="btn-primary text-xs">
+              {submitting ? <Loader2 size={12} className="animate-spin" /> : editing ? 'Guardar cambios' : 'Crear plantilla'}
             </button>
           </div>
         </div>
@@ -1257,16 +1366,16 @@ function TemplatesModal({
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {templates.map((t) => (
-              <div key={t.id} className="rounded-xl border border-white/5 bg-ink-900/40 p-3">
+              <div key={t.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white">{t.name}</p>
+                    <p className="text-sm font-medium text-metal-100">{t.name}</p>
                     <p className="text-[11px] text-slate-500">{t.channel} · {t.clientStatus || 'todos'}</p>
                     <p className="mt-1 text-xs text-slate-400 line-clamp-2">{t.body}</p>
                   </div>
                   <div className="flex gap-1 ml-2">
                     <button onClick={() => startEdit(t)} className="btn-ghost px-2 py-1 text-xs">Editar</button>
-                    <button onClick={() => deleteTemplate(t.id)} className="btn-ghost px-2 py-1 text-xs text-danger-400"><Trash2 size={12} /></button>
+                    <button onClick={() => remove(t.id)} className="btn-ghost px-2 py-1 text-xs text-danger-400"><Trash2 size={12} /></button>
                   </div>
                 </div>
               </div>
@@ -1280,8 +1389,8 @@ function TemplatesModal({
 
 function InfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-ink-900/40 px-3 py-2.5">
-      <p className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1">{icon} {label}</p>
+    <div className="rounded-xl border border-tint/5 bg-ink-900/40 px-3 py-2.5">
+      <p className="kicker flex items-center gap-1">{icon} {label}</p>
       <p className="mt-1 text-sm text-slate-200">{value}</p>
     </div>
   );
@@ -1309,10 +1418,10 @@ function StandaloneCalculator() {
         )}
         <div><label className="label">Frecuencia</label><select className="input" value={freq} onChange={(e) => setFreq(e.target.value as PaymentFrequency)}><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div>
       </div>
-      <div className="rounded-xl border border-white/5 bg-ink-900/40 p-3 space-y-3">
+      <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 space-y-3">
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={equalInstallments} onChange={(e) => setEqualInstallments(e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-ink-900 text-accent-500 focus:ring-accent-500/40" />
-          <span className="text-sm text-white">Cuotas exactamente iguales</span>
+          <input type="checkbox" checked={equalInstallments} onChange={(e) => setEqualInstallments(e.target.checked)} className="h-4 w-4 rounded border-tint/20 bg-ink-900 text-accent-500 focus:ring-accent-500/40" />
+          <span className="text-sm text-metal-100">Cuotas exactamente iguales</span>
         </label>
         {equalInstallments && (
           <div><label className="label">Número de cuotas</label><NumberInput value={numInstallments} min={1} onChange={(v) => setNumInstallments(Math.max(1, v))} /></div>

@@ -1,34 +1,96 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+/*
+  Nocturne — repiel del CRM XiX Tech.
+  Tokens y clases de componente reescritos siguiendo el handoff de diseño
+  (README: Handoff XiX Tech CRM — repiel Nocturne). Los NOMBRES de clase se
+  conservan intactos (.glass-card, .nav-item, .badge-cyan, .kanban-card,
+  .sidebar…) para no tener que tocar ningún .tsx en esta capa.
+*/
+
+:root {
+  color-scheme: dark;
+  --color-bg: #161826;
+  --color-surface: #232532;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  --color-neutral-100: #f3f5fe;
+  --color-neutral-200: #e4e7f5;
+  --color-neutral-300: #cfd3e5;
+  --color-neutral-400: #b2b6ca;
+  --color-neutral-500: #9397ab;
+  --color-neutral-600: #75798c;
+  --color-neutral-700: #595d6c;
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-100: #f5f4ff;
+  --color-accent-200: #e7e5fe;
+  --color-accent-300: #d2cefd;
+  --color-accent-400: #b5abfc;
+  --color-accent-500: #968ae0;
+  --color-accent-600: #796cbf;
+  --color-accent-700: #5d5294;
+  --color-accent-800: #423a6a;
+  --color-accent-900: #2b2741;
+
+  --shadow-sm: 0 0 0 1px #3f424d;
+  --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,0.55);
+  --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0,0,0,0.65);
+
+  /* ─────────────────────────────────────────────────────────────
+     CAPA NEÓN — reinstalada sobre la paleta Nocturne.
+     Nocturne había quitado el glassmorphism y los halos a propósito.
+     Esto los devuelve, pero anclados al acento violeta de Nocturne
+     en vez del cian del diseño viejo.
+
+     PARA APAGAR TODO EL NEÓN: pon --neon: 0 aquí abajo.
+     PARA SUBIRLO / BAJARLO: mueve --neon entre 0 y 1.5
+     ───────────────────────────────────────────────────────────── */
+  --neon: 1;
+  --glow-accent: #9184d9;
+  --glow-cool:   #00d4ff;
+  --glow-violet: #7c3aed;
+
+  --glow-soft:   0 0 20px -4px color-mix(in srgb, var(--glow-accent) calc(45% * var(--neon)), transparent);
+  --glow-strong: 0 0 28px -4px color-mix(in srgb, var(--glow-accent) calc(65% * var(--neon)), transparent);
+  --blur-glass:  blur(24px) saturate(160%);
+}
+
 html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  background-color: #0a0a0c;
-  color: #e2e8f0;
-  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Background canvas ─── */
+h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.015em; }
+
+/* Resplandor ambiental + rejilla. Vive DEBAJO de <ParticleField /> (canvas,
+   fixed, z-0) — las partículas se ven flotando sobre el resplandor. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  opacity: var(--neon);
   background-image:
-    radial-gradient(ellipse 60% 40% at 20% 0%,   rgba(0, 212, 255, 0.055) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 35% at 85% 95%,  rgba(124, 58, 237, 0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 30% at 70% 20%,  rgba(14, 165, 233, 0.04) 0%, transparent 60%),
-    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+    radial-gradient(ellipse 60% 40% at 20% 0%,   color-mix(in srgb, var(--glow-cool)   9%, transparent) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 35% at 85% 95%,  color-mix(in srgb, var(--glow-violet) 12%, transparent) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 32% at 70% 25%,  color-mix(in srgb, var(--glow-accent) 10%, transparent) 0%, transparent 65%),
+    linear-gradient(rgba(255,255,255,0.014) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.014) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 100% 100%, 48px 48px, 48px 48px;
 }
 
@@ -37,161 +99,228 @@ body::before {
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text) 12%, transparent); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--color-text) 20%, transparent); }
 
-::selection { background: rgba(0,212,255,0.2); color: #fff; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); color: var(--color-text); }
 
 @layer components {
 
-  /* ── Glassmorphism card ── */
+  /* ── Tarjeta — glassmorphism reinstalado sobre la superficie Nocturne ── */
   .glass-card {
-    background: rgba(255,255,255,0.028);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 1rem;
+    background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+    backdrop-filter: var(--blur-glass);
+    -webkit-backdrop-filter: var(--blur-glass);
+    border: 1px solid var(--color-neutral-800);
+    border-radius: 12px;
     box-shadow:
       0 1px 0 rgba(255,255,255,0.05) inset,
-      0 0 0 0.5px rgba(255,255,255,0.04),
+      var(--shadow-sm),
       0 8px 32px -8px rgba(0,0,0,0.65);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
   .glass-card:hover {
-    border-color: rgba(255,255,255,0.11);
+    border-color: color-mix(in srgb, var(--glow-accent) calc(45% * var(--neon)), var(--color-neutral-700));
     box-shadow:
       0 1px 0 rgba(255,255,255,0.07) inset,
-      0 0 0 0.5px rgba(255,255,255,0.06),
+      var(--glow-soft),
       0 16px 48px -12px rgba(0,0,0,0.8);
   }
 
-  /* ── Card alias ── */
-  .card {
-    @apply glass-card;
-  }
+  .card { @apply glass-card; }
 
-  /* ── Sidebar item ── */
+  /* ── Ítem de navegación — la píldora cian pasa a marca de acento ── */
   .nav-item {
-    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer select-none;
-    color: rgba(148,163,184,0.85);
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 cursor-pointer select-none;
+    color: var(--color-neutral-500);
+    border-left: 2px solid transparent;
   }
   .nav-item:hover {
-    background: rgba(255,255,255,0.05);
-    color: #f1f5f9;
+    background: color-mix(in srgb, var(--color-text) 5%, transparent);
+    color: var(--color-neutral-100);
   }
   .nav-item.active {
-    background: rgba(0,212,255,0.09);
-    color: #67e8f9;
-    border: 1px solid rgba(0,212,255,0.15);
+    background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+    color: var(--color-accent-300);
+    border-left-color: var(--color-accent);
+    box-shadow:
+      inset 0 0 24px -8px color-mix(in srgb, var(--glow-accent) calc(55% * var(--neon)), transparent),
+      -2px 0 12px -4px color-mix(in srgb, var(--glow-accent) calc(50% * var(--neon)), transparent);
   }
-  .nav-item.active .nav-icon { color: #22d3ee; }
+  .nav-item.active .nav-icon {
+    color: var(--color-accent-300);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--glow-accent) calc(70% * var(--neon)), transparent));
+  }
 
-  /* ── Buttons ── */
+  /* ── Botones — el primario deja de ser relleno degradado y pasa a contorno ── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed select-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-150 focus:outline-none disabled:opacity-45 disabled:cursor-not-allowed select-none;
   }
-  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
 
+  /* Primario — vuelve el relleno degradado con halo. */
   .btn-primary {
     @apply btn;
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    background: linear-gradient(135deg, var(--color-accent-500) 0%, var(--color-accent-700) 100%);
     color: #fff;
-    box-shadow: 0 0 0 1px rgba(14,165,233,0.35), 0 6px 20px -6px rgba(14,165,233,0.5);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--glow-accent) 45%, transparent),
+      var(--glow-soft);
   }
   .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
-    box-shadow: 0 0 0 1px rgba(14,165,233,0.5), 0 8px 28px -6px rgba(14,165,233,0.6);
+    background: linear-gradient(135deg, var(--color-accent-400) 0%, var(--color-accent-600) 100%);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--glow-accent) 60%, transparent),
+      var(--glow-strong);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   .btn-ghost {
     @apply btn;
-    background: rgba(255,255,255,0.05);
-    color: rgba(148,163,184,0.9);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: color-mix(in srgb, var(--color-text) 5%, transparent);
+    color: var(--color-neutral-400);
+    border: 1px solid var(--color-neutral-800);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(255,255,255,0.08);
-    color: #f1f5f9;
-    border-color: rgba(255,255,255,0.13);
+    background: color-mix(in srgb, var(--color-text) 8%, transparent);
+    color: var(--color-neutral-100);
+    border-color: var(--color-neutral-700);
   }
 
   .btn-danger {
     @apply btn;
-    background: rgba(239,68,68,0.12);
-    color: #f87171;
-    border: 1px solid rgba(239,68,68,0.2);
+    background: transparent;
+    color: #d09090;
+    box-shadow: inset 0 0 0 1px #935e5e;
   }
   .btn-danger:hover:not(:disabled) {
-    background: rgba(239,68,68,0.2);
-    border-color: rgba(239,68,68,0.35);
+    background: rgba(208,144,144,0.14);
+  }
+  .btn-block { width: 100%; }
+
+  /* ── Segmentado — conmutador de modo (login/registro), sin relleno ── */
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--color-neutral-800);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .seg-opt {
+    flex: 1;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    color: var(--color-neutral-500);
+    transition: color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .seg-opt + .seg-opt { border-left: 1px solid var(--color-neutral-800); }
+  .seg-opt:hover { color: var(--color-neutral-200); }
+  .seg-opt.active {
+    color: var(--color-accent);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
   }
 
   /* ── Input ── */
   .input {
-    @apply w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none transition-all duration-200;
-    background: rgba(255,255,255,0.04);
-    border-color: rgba(255,255,255,0.09);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3) inset;
+    @apply w-full rounded-lg border px-3.5 py-2.5 text-sm transition-all duration-150 focus:outline-none;
+    color: var(--color-text);
+    caret-color: var(--color-accent);
+    background: var(--color-surface);
+    border-color: var(--color-neutral-800);
   }
+  .input::placeholder { color: var(--color-neutral-600); }
+  .input:hover { border-color: var(--color-neutral-700); }
   .input:focus {
-    border-color: rgba(0,212,255,0.35);
-    background: rgba(0,212,255,0.03);
-    box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 1px 3px rgba(0,0,0,0.3) inset;
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--glow-accent) 4%, var(--color-surface));
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent),
+      var(--glow-soft);
   }
 
   .label {
     @apply block text-xs font-medium mb-1.5;
-    color: rgba(148,163,184,0.7);
+    color: var(--color-neutral-500);
   }
 
-  /* ── Badge ── */
+  /* ── Badge — mismo rol semántico, paleta desaturada ── */
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
-  .badge-cyan    { background: rgba(0,212,255,0.1);   color: #67e8f9; border: 1px solid rgba(0,212,255,0.2); }
-  .badge-violet  { background: rgba(124,58,237,0.12); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.25); }
-  .badge-green   { background: rgba(16,185,129,0.1);  color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
-  .badge-amber   { background: rgba(245,158,11,0.1);  color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
-  .badge-rose    { background: rgba(244,63,94,0.1);   color: #fda4af; border: 1px solid rgba(244,63,94,0.2); }
-  .badge-metal   { background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); }
-  .badge-blue    { background: rgba(59,130,246,0.1);  color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+  .badge-cyan    { background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent-300); border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent); }
+  .badge-violet  { background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent-300); border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent); }
+  .badge-green   { background: rgba(134,178,152,0.14); color: #a9cdb6; border: 1px solid rgba(134,178,152,0.3); }
+  .badge-amber   { background: rgba(201,174,125,0.14); color: #e0cba3; border: 1px solid rgba(201,174,125,0.3); }
+  .badge-rose    { background: rgba(208,144,144,0.14); color: #e8b4b4; border: 1px solid rgba(208,144,144,0.3); }
+  .badge-metal   { background: color-mix(in srgb, var(--color-text) 6%, transparent); color: var(--color-neutral-400); border: 1px solid var(--color-neutral-800); }
+  .badge-blue    { background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent-300); border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent); }
 
-  /* ── Stat card accent bars ── */
-  .stat-card-cyan   { border-top: 1px solid rgba(0,212,255,0.2); }
-  .stat-card-violet { border-top: 1px solid rgba(124,58,237,0.3); }
-  .stat-card-green  { border-top: 1px solid rgba(16,185,129,0.2); }
-  .stat-card-amber  { border-top: 1px solid rgba(245,158,11,0.2); }
+  /* ── Barra superior de las tarjetas KPI ── */
+  .stat-card-cyan   { border-top: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent); }
+  .stat-card-violet { border-top: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent); }
+  .stat-card-green  { border-top: 1px solid rgba(134,178,152,0.3); }
+  .stat-card-amber  { border-top: 1px solid rgba(201,174,125,0.3); }
 
-  /* ── Divider ── */
-  .divider { @apply h-px w-full; background: rgba(255,255,255,0.06); }
+  /* ── Divider — firma del sistema: se desvanece en los extremos ── */
+  .divider {
+    @apply h-px w-full;
+    background: linear-gradient(to right,
+      transparent, var(--color-divider) 48px,
+      var(--color-divider) calc(100% - 48px), transparent);
+  }
 
   /* ── Kanban card ── */
   .kanban-card {
-    background: rgba(255,255,255,0.035);
+    background: color-mix(in srgb, var(--color-surface) 80%, transparent);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 0.875rem;
-    transition: all 0.2s ease;
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-neutral-800);
+    border-radius: 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     cursor: grab;
   }
   .kanban-card:hover {
-    background: rgba(255,255,255,0.055);
-    border-color: rgba(255,255,255,0.13);
-    transform: translateY(-1px);
-    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.6);
+    border-color: color-mix(in srgb, var(--glow-accent) calc(45% * var(--neon)), var(--color-neutral-700));
+    transform: translateY(-2px);
+    box-shadow: var(--glow-soft), 0 12px 32px -10px rgba(0,0,0,0.7);
   }
   .kanban-card:active { cursor: grabbing; }
 
-  /* ── Table ── */
+  /* ── Fila de tabla ── */
   .table-row-hover:hover {
-    background: rgba(255,255,255,0.025);
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
   }
 
-  /* ── Sidebar ── */
+  /* ── Sidebar — vuelve el blur pesado translúcido ── */
   .sidebar {
-    background: rgba(10,10,12,0.85);
+    background: color-mix(in srgb, var(--color-bg) 82%, transparent);
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
-    border-right: 1px solid rgba(255,255,255,0.06);
+    border-right: 1px solid var(--color-neutral-800);
+  }
+
+  /* ── Utilidad: halo de acento para cualquier elemento ── */
+  .glow      { box-shadow: var(--glow-soft); }
+  .glow-text { text-shadow: 0 0 12px color-mix(in srgb, var(--glow-accent) calc(60% * var(--neon)), transparent); }
+
+  /* ── Cifras — mono tabular, para que las columnas no bailen ── */
+  .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Kicker — encabezado pequeño en mayúsculas, patrón repetido en los tabs ── */
+  .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-neutral-500);
   }
 }

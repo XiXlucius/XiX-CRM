@@ -26,7 +26,8 @@ export interface CaracasMunicipality {
   name: string;
   applications: number;
   approved: number;
-  path: string; // SVG path for stylized shape
+  lat: number;
+  lng: number;
 }
 
 // ---------------- CRM ----------------
@@ -242,6 +243,8 @@ export interface TeamMember {
   activePortfolio: number;
   delinquencyPct: number;
   joinedAt: string;
+  originLat?: number | null;
+  originLng?: number | null;
 }
 
 // ---------------- Facturacion ----------------
@@ -334,4 +337,5 @@ export type Permission =
   | 'inventario'
   | 'config'
   | 'reportes'
-  | 'auditoria';
+  | 'auditoria'
+  | 'ruta';

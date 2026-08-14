@@ -86,7 +86,7 @@ export function ReportesTab() {
     return buckets;
   }, [invoices]);
 
-  const agingColors = ['#10b981', '#0ea5e9', '#f59e0b', '#f97316', '#ef4444'];
+  const agingColors = ['#9397ab', '#e0cba3', '#c9ae7d', '#e8b4b4', '#d09090'];
 
   // ---- Cash flow projection (6 months) ----
   const cashFlow = useMemo(() => {
@@ -166,7 +166,7 @@ export function ReportesTab() {
                 key={r.id}
                 onClick={() => setRange(r.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  range === r.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-white'
+                  range === r.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-metal-100'
                 }`}
               >
                 {r.label}
@@ -195,15 +195,15 @@ export function ReportesTab() {
           <p className="py-6 text-center text-sm text-slate-500">Sin facturas vencidas</p>
         ) : (
           <>
-            <div className="h-56">
+            <div className="h-[200px] sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={aging} margin={{ left: -16, right: 8, top: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1c2942" vertical={false} />
-                  <XAxis dataKey="label" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3f424d" vertical={false} />
+                  <XAxis dataKey="label" stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip
-                    contentStyle={{ background: '#0f172a', border: '1px solid #1c2942', borderRadius: 12, fontSize: 12 }}
-                    labelStyle={{ color: '#94a3b8' }}
+                    contentStyle={{ background: '#232532', border: '1px solid #3f424d', borderRadius: 12, fontSize: 12 }}
+                    labelStyle={{ color: '#b2b6ca' }}
                     formatter={(val) => fmtMoney(Number(val))}
                   />
                   <Bar dataKey="amount" name="Monto" radius={[6, 6, 0, 0]}>
@@ -217,26 +217,26 @@ export function ReportesTab() {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                  <tr className="text-left kicker">
                     <th className="px-3 py-2 font-medium">Bucket</th>
                     <th className="px-3 py-2 font-medium text-right">Facturas</th>
                     <th className="px-3 py-2 font-medium text-right">Monto</th>
                     <th className="px-3 py-2 font-medium text-right">% del total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-tint/5">
                   {aging.map((b, i) => {
                     const total = aging.reduce((a, x) => a + x.amount, 0);
                     return (
                       <tr key={i} className="table-row">
-                        <td className="px-3 py-2 font-medium text-white">
+                        <td className="px-3 py-2 font-medium text-metal-100">
                           <span className="inline-flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full" style={{ background: agingColors[i] }} />
                             {b.label}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-right text-slate-300">{b.count}</td>
-                        <td className="px-3 py-2 text-right font-mono text-white">{fmtMoney(b.amount)}</td>
+                        <td className="px-3 py-2 text-right num text-metal-100">{fmtMoney(b.amount)}</td>
                         <td className="px-3 py-2 text-right text-slate-400">{total > 0 ? fmtPct((b.amount / total) * 100) : '—'}</td>
                       </tr>
                     );
@@ -255,27 +255,27 @@ export function ReportesTab() {
           subtitle="Ingresos esperados por mes · escenarios optimista y pesimista"
           icon={<CalendarClock size={16} />}
         />
-        <div className="h-64">
+        <div className="h-[220px] sm:h-64">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={cashFlow} margin={{ left: -16, right: 8, top: 4 }}>
               <defs>
                 <linearGradient id="gEsperado" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#b5abfc" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#b5abfc" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2942" vertical={false} />
-              <XAxis dataKey="month" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#3f424d" vertical={false} />
+              <XAxis dataKey="month" stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
               <Tooltip
-                contentStyle={{ background: '#0f172a', border: '1px solid #1c2942', borderRadius: 12, fontSize: 12 }}
-                labelStyle={{ color: '#94a3b8' }}
+                contentStyle={{ background: '#232532', border: '1px solid #3f424d', borderRadius: 12, fontSize: 12 }}
+                labelStyle={{ color: '#b2b6ca' }}
                 formatter={(val) => fmtMoney(Number(val))}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area type="monotone" dataKey="esperado" name="Esperado" stroke="#0ea5e9" strokeWidth={2} fill="url(#gEsperado)" />
-              <Line type="monotone" dataKey="optimista" name="Optimista" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-              <Line type="monotone" dataKey="pesimista" name="Pesimista" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+              <Area type="monotone" dataKey="esperado" name="Esperado" stroke="#b5abfc" strokeWidth={2} fill="url(#gEsperado)" />
+              <Line type="monotone" dataKey="optimista" name="Optimista" stroke="#86b298" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+              <Line type="monotone" dataKey="pesimista" name="Pesimista" stroke="#d09090" strokeWidth={2} dot={false} strokeDasharray="5 5" />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -294,7 +294,7 @@ export function ReportesTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                <tr className="text-left kicker">
                   <th className="px-3 py-2 font-medium">#</th>
                   <th className="px-3 py-2 font-medium">Vendedor</th>
                   <th className="px-3 py-2 font-medium text-right">Cobranza</th>
@@ -304,7 +304,7 @@ export function ReportesTab() {
                   <th className="px-3 py-2 font-medium text-right">Mora</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-tint/5">
                 {teamRanking.map((m, i) => (
                   <tr key={m.id} className="table-row">
                     <td className="px-3 py-2">
@@ -312,12 +312,12 @@ export function ReportesTab() {
                         {i + 1}
                       </span>
                     </td>
-                    <td className="px-3 py-2 font-medium text-white">{m.name}</td>
-                    <td className="px-3 py-2 text-right font-mono text-success-500">{fmtMoney(m.collected)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-300">{fmtMoney(m.achievedMonthly)}</td>
+                    <td className="px-3 py-2 font-medium text-metal-100">{m.name}</td>
+                    <td className="px-3 py-2 text-right num text-success-500">{fmtMoney(m.collected)}</td>
+                    <td className="px-3 py-2 text-right num text-slate-300">{fmtMoney(m.achievedMonthly)}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/5">
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-tint/5">
                           <div className={`h-full rounded-full ${m.effectiveness >= 75 ? 'bg-success-500' : m.effectiveness >= 50 ? 'bg-warning-400' : 'bg-danger-400'}`} style={{ width: `${m.effectiveness}%` }} />
                         </div>
                         <span className="text-xs text-slate-400">{fmtPct(m.effectiveness)}</span>
@@ -355,21 +355,21 @@ export function ReportesTab() {
           <div className="overflow-x-auto max-h-64">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                <tr className="text-left kicker">
                   <th className="px-3 py-2 font-medium">Cliente</th>
                   <th className="px-3 py-2 font-medium">Semana</th>
                   <th className="px-3 py-2 font-medium text-right">Monto</th>
                   <th className="px-3 py-2 font-medium">Aplicado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-tint/5">
                 {lateFees.slice(0, 20).map((f) => {
                   const client = clients.find((c) => c.id === f.clientId);
                   return (
                     <tr key={f.id} className="table-row">
-                      <td className="px-3 py-2 font-medium text-white">{client?.fullName ?? '—'}</td>
+                      <td className="px-3 py-2 font-medium text-metal-100">{client?.fullName ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-400">Semana {f.weekNumber}</td>
-                      <td className="px-3 py-2 text-right font-mono text-danger-400">+{fmtMoney(f.amount)}</td>
+                      <td className="px-3 py-2 text-right num text-danger-400">+{fmtMoney(f.amount)}</td>
                       <td className="px-3 py-2 text-xs text-slate-500">{fmtDate(f.appliedAt)}</td>
                     </tr>
                   );
@@ -412,7 +412,7 @@ export function ReportesTab() {
           icon={<Boxes size={18} />}
           title="Rotación de inventario"
           desc={`${products.length} productos · stock y rotación`}
-          color="from-sky-500/20 to-sky-500/5 text-sky-300"
+          color="from-metal-700/30 to-metal-700/10 text-metal-300"
           onCSV={() => downloadCSV('inventario.csv', productsToCSV(products))}
         />
       </div>
@@ -430,7 +430,7 @@ export function ReportesTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                <tr className="text-left kicker">
                   <th className="px-3 py-2 font-medium">Cliente</th>
                   <th className="px-3 py-2 font-medium">Producto</th>
                   <th className="px-3 py-2 font-medium">Saldo</th>
@@ -439,16 +439,16 @@ export function ReportesTab() {
                   <th className="px-3 py-2 font-medium">Última nota</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-tint/5">
                 {clients.filter((c) => c.status === 'en_mora').map((c) => {
                   const clientLateFees = lateFees.filter((f) => f.clientId === c.id).reduce((a, f) => a + f.amount, 0);
                   return (
                     <tr key={c.id} className="table-row">
-                      <td className="px-3 py-2 font-medium text-white">{c.fullName}</td>
+                      <td className="px-3 py-2 font-medium text-metal-100">{c.fullName}</td>
                       <td className="px-3 py-2 text-slate-300">{c.product}</td>
-                      <td className="px-3 py-2 font-mono text-danger-400">{fmtMoney(c.productCost * (1 - c.downPaymentPct / 100))}</td>
-                      <td className="px-3 py-2 font-mono text-slate-400">{c.riskScore}</td>
-                      <td className="px-3 py-2 font-mono text-danger-400">{clientLateFees > 0 ? fmtMoney(clientLateFees) : '—'}</td>
+                      <td className="px-3 py-2 num text-danger-400">{fmtMoney(c.productCost * (1 - c.downPaymentPct / 100))}</td>
+                      <td className="px-3 py-2 num text-slate-400">{c.riskScore}</td>
+                      <td className="px-3 py-2 num text-danger-400">{clientLateFees > 0 ? fmtMoney(clientLateFees) : '—'}</td>
                       <td className="px-3 py-2 text-xs text-slate-500">{c.bitacora[0] ? fmtDate(c.bitacora[0].date) : '—'}</td>
                     </tr>
                   );
@@ -467,9 +467,9 @@ function KpiTile({ icon, label, value, color }: { icon: React.ReactNode; label: 
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <span className={color}>{icon}</span>
-        <span className="text-xs uppercase tracking-wider text-slate-500">{label}</span>
+        <span className="kicker">{label}</span>
       </div>
-      <p className="mt-1.5 font-display text-xl font-semibold text-white">{value}</p>
+      <p className="mt-1.5 font-display text-xl font-medium text-metal-100">{value}</p>
     </Card>
   );
 }
@@ -483,11 +483,11 @@ function ExportCard({
   return (
     <Card className="p-5">
       <div className="flex items-start gap-3">
-        <div className={`grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br ${color}`}>
+        <div className={`grid h-11 w-11 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10`}>
           {icon}
         </div>
         <div className="flex-1">
-          <p className="font-display text-sm font-semibold text-white">{title}</p>
+          <p className="font-display text-sm font-medium text-metal-100">{title}</p>
           <p className="mt-0.5 text-xs text-slate-500">{desc}</p>
         </div>
       </div>

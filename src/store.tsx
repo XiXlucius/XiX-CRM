@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type {
   Role,
@@ -28,6 +28,7 @@ import {
 import { supabase } from './lib/supabase';
 import { logAudit } from './lib/audit';
 import { assessRisk, DEFAULT_SETTINGS, type BusinessSettings } from './lib/scoring';
+import { friendlyError } from './lib/errors';
 
 // ============================================================
 // Types
@@ -54,6 +55,8 @@ interface PersistState {
 interface StoreValue extends PersistState {
   user: { id: string; email: string } | null;
   loading: boolean;
+  loadError: string | null;
+  retryLoad: () => void;
   setRole: (r: Role) => void;
   addClient: (c: Omit<Client, 'id' | 'createdAt' | 'bitacora'>) => Promise<Client>;
   updateClient: (id: string, patch: Partial<Client>) => Promise<void>;
@@ -191,6 +194,20 @@ const mapLateFee = (r: Record<string, unknown>): LateFee => ({
   createdAt: r.created_at as string,
 });
 
+
+// Resuelve (o crea, para altas nuevas post-migración) la organización del usuario.
+// Ver supabase/migrations/20260814130000_004_multi_tenant.sql — el backfill de esa migración
+// cubre usuarios preexistentes; esto cubre signups nuevos que aún no tienen membership.
+async function ensureOrgId(uid: string): Promise<string> {
+  const { data: existing } = await supabase.from('memberships').select('org_id').eq('user_id', uid).limit(1).maybeSingle();
+  if (existing?.org_id) return existing.org_id as string;
+  const { data: org, error: orgErr } = await supabase.from('organizations').insert({ name: 'Mi organización', owner_id: uid }).select('id').single();
+  if (orgErr) throw orgErr;
+  const { error: memErr } = await supabase.from('memberships').insert({ org_id: org!.id, user_id: uid, role: 'admin', active: true });
+  if (memErr) throw memErr;
+  return org!.id as string;
+}
+
 const mapTeam = (r: Record<string, unknown>): TeamMember => ({
   id: r.id as string,
   name: r.name as string,
@@ -204,6 +221,8 @@ const mapTeam = (r: Record<string, unknown>): TeamMember => ({
   activePortfolio: Number(r.active_portfolio),
   delinquencyPct: Number(r.delinquency_pct),
   joinedAt: r.joined_at as string,
+  originLat: r.origin_lat != null ? Number(r.origin_lat) : null,
+  originLng: r.origin_lng != null ? Number(r.origin_lng) : null,
 });
 
 const mapInvoice = (r: Record<string, unknown>): Invoice => ({
@@ -268,68 +287,90 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PersistState>(emptyState);
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [tourCompleted, setTourCompletedState] = useState(false);
+  const lastUidRef = useRef<string | null>(null);
 
   // ---- Load all data for the authenticated user ----
   const loadAll = useCallback(async (uid: string) => {
-    const [clients, team, invoices, products, progress, notifications, audit, settings, documents, templates, partialPayments, renegotiations, lateFees] =
-      await Promise.all([
-        supabase.from('clients').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('team_members').select('*').eq('user_id', uid).order('joined_at', { ascending: false }),
-        supabase.from('invoices').select('*').eq('user_id', uid).order('due_date', { ascending: true }),
-        supabase.from('products').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('course_progress').select('*').eq('user_id', uid),
-        supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
-        supabase.from('audit_log').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
-        supabase.from('business_settings').select('*').eq('user_id', uid).maybeSingle(),
-        supabase.from('client_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('message_templates').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('partial_payments').select('*').eq('user_id', uid).order('payment_date', { ascending: false }),
-        supabase.from('renegotiations').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('late_fees').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-      ]);
+    lastUidRef.current = uid;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const resolvedOrgId = await ensureOrgId(uid);
+      setOrgId(resolvedOrgId);
+      const [clients, team, invoices, products, progress, notifications, audit, settings, documents, templates, partialPayments, renegotiations, lateFees] =
+        await Promise.all([
+          supabase.from('clients').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }),
+          supabase.from('team_members').select('*').eq('org_id', resolvedOrgId).order('joined_at', { ascending: false }),
+          supabase.from('invoices').select('*').eq('org_id', resolvedOrgId).order('due_date', { ascending: true }),
+          supabase.from('products').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }),
+          supabase.from('course_progress').select('*').eq('org_id', resolvedOrgId),
+          supabase.from('notifications').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }).limit(50),
+          supabase.from('audit_log').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }).limit(100),
+          supabase.from('business_settings').select('*').eq('org_id', resolvedOrgId).maybeSingle(),
+          supabase.from('client_documents').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }),
+          supabase.from('message_templates').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }),
+          supabase.from('partial_payments').select('*').eq('org_id', resolvedOrgId).order('payment_date', { ascending: false }),
+          supabase.from('renegotiations').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }),
+          supabase.from('late_fees').select('*').eq('org_id', resolvedOrgId).order('created_at', { ascending: false }),
+        ]);
 
-    // Load bitacora for each client
-    const clientRows = (clients.data ?? []) as Record<string, unknown>[];
-    const clientsWithBitacora: Client[] = await Promise.all(
-      clientRows.map(async (r) => {
-        const { data: bit } = await supabase
-          .from('bitacora_entries')
-          .select('*')
-          .eq('client_id', r.id)
-          .order('created_at', { ascending: false });
-        const c = mapClient(r);
-        c.bitacora = (bit ?? []).map((b) => ({
-          id: b.id,
-          date: b.created_at,
-          author: b.author,
-          channel: b.channel,
-          note: b.note,
-          outcome: b.outcome,
-        }));
-        return c;
-      }),
-    );
+      for (const res of [clients, team, invoices, products, progress, notifications, audit, settings, documents, templates, partialPayments, renegotiations, lateFees]) {
+        if (res.error) throw res.error;
+      }
 
-    setState({
-      role: (localStorage.getItem('credinucleo_role') as Role) || 'vendedor',
-      clients: clientsWithBitacora,
-      team: (team.data ?? []).map(mapTeam),
-      invoices: (invoices.data ?? []).map(mapInvoice),
-      products: (products.data ?? []).map(mapProduct),
-      progress: (progress.data ?? []).map(mapProgress),
-      notifications: (notifications.data ?? []).map(mapNotification),
-      audit: (audit.data ?? []).map(mapAudit),
-      settings: settings.data ? (settings.data as unknown as BusinessSettings) : DEFAULT_SETTINGS,
-      documents: (documents.data ?? []).map(mapDocument),
-      templates: (templates.data ?? []).map(mapTemplate),
-      partialPayments: (partialPayments.data ?? []).map(mapPartialPayment),
-      renegotiations: (renegotiations.data ?? []).map(mapRenegotiation),
-      lateFees: (lateFees.data ?? []).map(mapLateFee),
-      tourCompleted,
-    });
-    setLoading(false);
+      // Load bitacora for each client
+      const clientRows = (clients.data ?? []) as Record<string, unknown>[];
+      const clientsWithBitacora: Client[] = await Promise.all(
+        clientRows.map(async (r) => {
+          const { data: bit, error: bitError } = await supabase
+            .from('bitacora_entries')
+            .select('*')
+            .eq('client_id', r.id)
+            .order('created_at', { ascending: false });
+          if (bitError) throw bitError;
+          const c = mapClient(r);
+          c.bitacora = (bit ?? []).map((b) => ({
+            id: b.id,
+            date: b.created_at,
+            author: b.author,
+            channel: b.channel,
+            note: b.note,
+            outcome: b.outcome,
+          }));
+          return c;
+        }),
+      );
+
+      setState({
+        role: (localStorage.getItem('credinucleo_role') as Role) || 'vendedor',
+        clients: clientsWithBitacora,
+        team: (team.data ?? []).map(mapTeam),
+        invoices: (invoices.data ?? []).map(mapInvoice),
+        products: (products.data ?? []).map(mapProduct),
+        progress: (progress.data ?? []).map(mapProgress),
+        notifications: (notifications.data ?? []).map(mapNotification),
+        audit: (audit.data ?? []).map(mapAudit),
+        settings: settings.data ? (settings.data as unknown as BusinessSettings) : DEFAULT_SETTINGS,
+        documents: (documents.data ?? []).map(mapDocument),
+        templates: (templates.data ?? []).map(mapTemplate),
+        partialPayments: (partialPayments.data ?? []).map(mapPartialPayment),
+        renegotiations: (renegotiations.data ?? []).map(mapRenegotiation),
+        lateFees: (lateFees.data ?? []).map(mapLateFee),
+        tourCompleted,
+      });
+      setLoading(false);
+    } catch (err) {
+      setLoadError(friendlyError(err));
+      setLoading(false);
+    }
   }, [tourCompleted]);
+
+  const retryLoad = useCallback(() => {
+    if (lastUidRef.current) loadAll(lastUidRef.current);
+  }, [loadAll]);
 
   // ---- Auth state ----
   useEffect(() => {
@@ -352,9 +393,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ---- Seed demo data for a new user ----
   const seedDemoData = useCallback(async (uid: string) => {
+    const orgId = await ensureOrgId(uid);
     // Insert seed clients
     const clientRows = SEED_CLIENTS.map((c) => ({
       user_id: uid,
+      org_id: orgId,
       full_name: c.fullName,
       cedula: c.cedula,
       phone: c.phone,
@@ -374,21 +417,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       employment_tenure: c.employmentTenure ?? '6m-1y',
       has_physical_id: c.hasPhysicalId ?? true,
     }));
-    const { data: insertedClients } = await supabase.from('clients').insert(clientRows).select('id, full_name');
+    const { data: insertedClients, error: seedClientsErr } = await supabase.from('clients').insert(clientRows).select('id, full_name');
+    if (seedClientsErr) throw seedClientsErr;
     // Insert bitacora for each seed client
     for (let i = 0; i < SEED_CLIENTS.length; i++) {
       const sc = SEED_CLIENTS[i];
       const newId = insertedClients?.[i]?.id;
       if (!newId) continue;
       for (const b of sc.bitacora) {
-        await supabase.from('bitacora_entries').insert({
+        const { error: bitErr } = await supabase.from('bitacora_entries').insert({
           client_id: newId,
           user_id: uid,
+      org_id: orgId,
           author: b.author,
           channel: b.channel,
           note: b.note,
           outcome: b.outcome,
         });
+        if (bitErr) throw bitErr;
       }
     }
     // Insert seed invoices, linking to new client ids
@@ -399,6 +445,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         : null;
       return {
         user_id: uid,
+      org_id: orgId,
         client_id: newClientId ?? null,
         client_name: inv.clientName,
         amount: inv.amount,
@@ -410,11 +457,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         total_installments: inv.totalInstallments,
       };
     });
-    await supabase.from('invoices').insert(invoiceRows);
+    const { error: invErr } = await supabase.from('invoices').insert(invoiceRows);
+    if (invErr) throw invErr;
     // Insert seed team
-    await supabase.from('team_members').insert(
+    const { error: teamErr } = await supabase.from('team_members').insert(
       SEED_TEAM.map((m) => ({
         user_id: uid,
+      org_id: orgId,
         name: m.name,
         role: m.role,
         email: m.email,
@@ -427,10 +476,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         delinquency_pct: m.delinquencyPct,
       })),
     );
+    if (teamErr) throw teamErr;
     // Insert seed products
-    await supabase.from('products').insert(
+    const { error: prodErr } = await supabase.from('products').insert(
       SEED_PRODUCTS.map((p) => ({
         user_id: uid,
+      org_id: orgId,
         sku: p.sku,
         name: p.name,
         category: p.category,
@@ -441,15 +492,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         sold: p.sold,
       })),
     );
+    if (prodErr) throw prodErr;
     // Insert default settings
-    await supabase.from('business_settings').insert({ user_id: uid, ...DEFAULT_SETTINGS });
+    const { error: settingsErr } = await supabase.from('business_settings').insert({ user_id: uid,
+      org_id: orgId, ...DEFAULT_SETTINGS });
+    if (settingsErr) throw settingsErr;
   }, []);
 
   // Expose seedDemoData via a custom event so AuthScreen can trigger it
   useEffect(() => {
     const handler = async (e: Event) => {
       const uid = (e as CustomEvent).detail as string;
-      await seedDemoData(uid);
+      try {
+        await seedDemoData(uid);
+      } catch (err) {
+        // Sembrado falló (parcial o total): igual cargamos lo que haya
+        // quedado en vez de dejar al usuario recién registrado sin CRM.
+        console.error('seedDemoData failed:', friendlyError(err));
+      }
       await loadAll(uid);
     };
     window.addEventListener('credinucleo:seed', handler);
@@ -468,6 +528,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const assessment = assessRisk(c, state.settings);
     const row = {
       user_id: u.id,
+        org_id: orgId,
       full_name: c.fullName,
       cedula: c.cedula,
       phone: c.phone,
@@ -531,7 +592,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteClient: StoreValue['deleteClient'] = async (id) => {
-    await supabase.from('clients').delete().eq('id', id);
+    const { error } = await supabase.from('clients').delete().eq('id', id);
+    if (error) throw error;
     setState((s) => ({ ...s, clients: s.clients.filter((c) => c.id !== id) }));
     await logAudit('delete', 'client', id, null, null);
   };
@@ -541,6 +603,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.from('bitacora_entries').insert({
       client_id: clientId,
       user_id: u?.id,
+      org_id: orgId,
       author: entry.author,
       channel: entry.channel,
       note: entry.note,
@@ -566,7 +629,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toggleTeamActive: StoreValue['toggleTeamActive'] = async (id) => {
     const m = state.team.find((t) => t.id === id);
     const newVal = !m?.active;
-    await supabase.from('team_members').update({ active: newVal }).eq('id', id);
+    const { error } = await supabase.from('team_members').update({ active: newVal }).eq('id', id);
+    if (error) throw error;
     setState((s) => ({
       ...s,
       team: s.team.map((t) => (t.id === id ? { ...t, active: newVal } : t)),
@@ -586,7 +650,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.commissionRatePct !== undefined) dbPatch.commission_rate_pct = patch.commissionRatePct;
     if (patch.activePortfolio !== undefined) dbPatch.active_portfolio = patch.activePortfolio;
     if (patch.delinquencyPct !== undefined) dbPatch.delinquency_pct = patch.delinquencyPct;
-    await supabase.from('team_members').update(dbPatch).eq('id', id);
+    if (patch.originLat !== undefined) dbPatch.origin_lat = patch.originLat;
+    if (patch.originLng !== undefined) dbPatch.origin_lng = patch.originLng;
+    const { error } = await supabase.from('team_members').update(dbPatch).eq('id', id);
+    if (error) throw error;
     setState((s) => ({
       ...s,
       team: s.team.map((t) => (t.id === id ? { ...t, ...patch } : t)),
@@ -598,6 +665,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data: { user: u } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('team_members').insert({
       user_id: u?.id,
+      org_id: orgId,
       name: m.name,
       role: m.role,
       email: m.email,
@@ -617,7 +685,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const markInvoicePaid: StoreValue['markInvoicePaid'] = async (id) => {
     const paidDate = new Date().toISOString();
-    await supabase.from('invoices').update({ status: 'pagada', paid_date: paidDate }).eq('id', id);
+    const { error } = await supabase.from('invoices').update({ status: 'pagada', paid_date: paidDate }).eq('id', id);
+    if (error) throw error;
     setState((s) => ({
       ...s,
       invoices: s.invoices.map((i) =>
@@ -631,6 +700,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data: { user: u } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('invoices').insert({
       user_id: u?.id,
+      org_id: orgId,
       client_id: i.clientId || null,
       client_name: i.clientName,
       amount: i.amount,
@@ -667,6 +737,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (downAmount > 0) {
       invoicesToInsert.push({
         user_id: u?.id,
+      org_id: orgId,
         client_id: clientId,
         client_name: client.fullName,
         amount: round2(downAmount),
@@ -681,6 +752,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const due = nextDueDate(anchor, i, client.frequency);
       invoicesToInsert.push({
         user_id: u?.id,
+      org_id: orgId,
         client_id: clientId,
         client_name: client.fullName,
         amount: row.payment,
@@ -691,14 +763,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         total_installments: rows.length,
       });
     });
-    const { data: inserted } = await supabase.from('invoices').insert(invoicesToInsert).select('*');
+    const { data: inserted, error: insErr } = await supabase.from('invoices').insert(invoicesToInsert).select('*');
+    if (insErr) throw insErr;
+    const { error: statusErr } = await supabase.from('clients').update({ status: 'activo' }).eq('id', clientId);
+    if (statusErr) throw statusErr;
     const newInvoices = ((inserted as Record<string, unknown>[]) ?? []).map(mapInvoice);
     setState((s) => ({
       ...s,
       invoices: [...newInvoices, ...s.invoices],
       clients: s.clients.map((c) => (c.id === clientId ? { ...c, status: 'activo' } : c)),
     }));
-    await supabase.from('clients').update({ status: 'activo' }).eq('id', clientId);
     await logAudit('generate_schedule', 'invoices', clientId, null, { count: invoicesToInsert.length });
   };
 
@@ -706,6 +780,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data: { user: u } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('products').insert({
       user_id: u?.id,
+      org_id: orgId,
       sku: p.sku,
       name: p.name,
       category: p.category,
@@ -731,7 +806,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.discountPct !== undefined) dbPatch.discount_pct = patch.discountPct;
     if (patch.stock !== undefined) dbPatch.stock = patch.stock;
     if (patch.sold !== undefined) dbPatch.sold = patch.sold;
-    await supabase.from('products').update(dbPatch).eq('id', id);
+    const { error } = await supabase.from('products').update(dbPatch).eq('id', id);
+    if (error) throw error;
     setState((s) => ({
       ...s,
       products: s.products.map((p) => (p.id === id ? { ...p, ...patch } : p)),
@@ -740,7 +816,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProduct: StoreValue['deleteProduct'] = async (id) => {
-    await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) throw error;
     setState((s) => ({ ...s, products: s.products.filter((p) => p.id !== id) }));
     await logAudit('delete', 'product', id, null, null);
   };
@@ -750,11 +827,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const existing = state.progress.find((p) => p.courseId === courseId);
     if (existing) {
       const newBest = Math.max(existing.bestScore, score);
-      await supabase.from('course_progress').update({
+      const { error } = await supabase.from('course_progress').update({
         best_score: newBest,
         attempts: existing.attempts + 1,
         updated_at: new Date().toISOString(),
       }).eq('id', (existing as unknown as Record<string, unknown>).id ?? '');
+      if (error) throw error;
       setState((s) => ({
         ...s,
         progress: s.progress.map((p) =>
@@ -762,12 +840,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       }));
     } else {
-      await supabase.from('course_progress').insert({
+      const { error } = await supabase.from('course_progress').insert({
         user_id: u?.id,
+      org_id: orgId,
         course_id: courseId,
         best_score: score,
         attempts: 1,
       });
+      if (error) throw error;
       setState((s) => ({
         ...s,
         progress: [...s.progress, { courseId, completedLessons: [], bestScore: score, attempts: 1 }],
@@ -782,10 +862,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const lessons = existing.completedLessons.includes(lessonId)
         ? existing.completedLessons
         : [...existing.completedLessons, lessonId];
-      await supabase.from('course_progress').update({
+      const { error } = await supabase.from('course_progress').update({
         completed_lessons: lessons,
         updated_at: new Date().toISOString(),
       }).eq('id', (existing as unknown as Record<string, unknown>).id ?? '');
+      if (error) throw error;
       setState((s) => ({
         ...s,
         progress: s.progress.map((p) =>
@@ -793,13 +874,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       }));
     } else {
-      await supabase.from('course_progress').insert({
+      const { error } = await supabase.from('course_progress').insert({
         user_id: u?.id,
+      org_id: orgId,
         course_id: courseId,
         completed_lessons: [lessonId],
         best_score: 0,
         attempts: 0,
       });
+      if (error) throw error;
       setState((s) => ({
         ...s,
         progress: [...s.progress, { courseId, completedLessons: [lessonId], bestScore: 0, attempts: 0 }],
@@ -808,7 +891,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const markNotificationRead: StoreValue['markNotificationRead'] = async (id) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+    if (error) throw error;
     setState((s) => ({
       ...s,
       notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
@@ -818,7 +902,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const markAllNotificationsRead: StoreValue['markAllNotificationsRead'] = async () => {
     const unread = state.notifications.filter((n) => !n.read);
     if (unread.length === 0) return;
-    await supabase.from('notifications').update({ read: true }).in('id', unread.map((n) => n.id));
+    const { error } = await supabase.from('notifications').update({ read: true }).in('id', unread.map((n) => n.id));
+    if (error) throw error;
     setState((s) => ({
       ...s,
       notifications: s.notifications.map((n) => ({ ...n, read: true })),
@@ -900,8 +985,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const existingTitles = new Set(state.notifications.map((n) => n.title));
     const newAlerts = alerts.filter((a) => !existingTitles.has(a.title));
     if (newAlerts.length > 0) {
-      await supabase.from('notifications').insert(newAlerts.map((a) => ({ ...a, user_id: u.id })));
-      const { data } = await supabase.from('notifications').select('*').eq('user_id', u.id).order('created_at', { ascending: false }).limit(50);
+      const { error: insErr } = await supabase.from('notifications').insert(newAlerts.map((a) => ({ ...a, user_id: u.id, org_id: orgId })));
+      if (insErr) throw insErr;
+      const { data, error: selErr } = await supabase.from('notifications').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(50);
+      if (selErr) throw selErr;
       setState((s) => ({ ...s, notifications: ((data as Record<string, unknown>[]) ?? []).map(mapNotification) }));
     }
   };
@@ -909,11 +996,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const updateSettings: StoreValue['updateSettings'] = async (patch) => {
     const { data: { user: u } } = await supabase.auth.getUser();
     if (!u) return;
-    const { data: existing } = await supabase.from('business_settings').select('id').eq('user_id', u.id).maybeSingle();
+    const { data: existing, error: selErr } = await supabase.from('business_settings').select('id').eq('org_id', orgId).maybeSingle();
+    if (selErr) throw selErr;
     if (existing) {
-      await supabase.from('business_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', u.id);
+      const { error } = await supabase.from('business_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('org_id', orgId);
+      if (error) throw error;
     } else {
-      await supabase.from('business_settings').insert({ user_id: u.id, ...DEFAULT_SETTINGS, ...patch });
+      const { error } = await supabase.from('business_settings').insert({ user_id: u.id,
+        org_id: orgId, ...DEFAULT_SETTINGS, ...patch });
+      if (error) throw error;
     }
     setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
     await logAudit('update_settings', 'business_settings', u.id, null, patch);
@@ -934,6 +1025,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (upErr) throw upErr;
     const { data, error } = await supabase.from('client_documents').insert({
       user_id: u.id,
+        org_id: orgId,
       client_id: clientId,
       name: file.name,
       type,
@@ -949,8 +1041,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deleteDocument: StoreValue['deleteDocument'] = async (id) => {
     const doc = state.documents.find((d) => d.id === id);
-    if (doc) await supabase.storage.from('client-documents').remove([doc.storagePath]);
-    await supabase.from('client_documents').delete().eq('id', id);
+    if (doc) {
+      const { error: storageErr } = await supabase.storage.from('client-documents').remove([doc.storagePath]);
+      if (storageErr) throw storageErr;
+    }
+    const { error } = await supabase.from('client_documents').delete().eq('id', id);
+    if (error) throw error;
     setState((s) => ({ ...s, documents: s.documents.filter((d) => d.id !== id) }));
     await logAudit('delete_doc', 'client_document', id, null, null);
   };
@@ -960,6 +1056,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data: { user: u } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('message_templates').insert({
       user_id: u?.id,
+      org_id: orgId,
       name: t.name,
       channel: t.channel,
       client_status: t.clientStatus,
@@ -979,13 +1076,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.clientStatus !== undefined) dbPatch.client_status = patch.clientStatus;
     if (patch.subject !== undefined) dbPatch.subject = patch.subject;
     if (patch.body !== undefined) dbPatch.body = patch.body;
-    await supabase.from('message_templates').update(dbPatch).eq('id', id);
+    const { error } = await supabase.from('message_templates').update(dbPatch).eq('id', id);
+    if (error) throw error;
     setState((s) => ({ ...s, templates: s.templates.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
     await logAudit('update', 'message_template', id, null, dbPatch);
   };
 
   const deleteTemplate: StoreValue['deleteTemplate'] = async (id) => {
-    await supabase.from('message_templates').delete().eq('id', id);
+    const { error } = await supabase.from('message_templates').delete().eq('id', id);
+    if (error) throw error;
     setState((s) => ({ ...s, templates: s.templates.filter((t) => t.id !== id) }));
     await logAudit('delete', 'message_template', id, null, null);
   };
@@ -995,6 +1094,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data: { user: u } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('partial_payments').insert({
       user_id: u?.id,
+      org_id: orgId,
       invoice_id: invoiceId,
       amount,
       payment_date: paymentDate,
@@ -1014,6 +1114,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const outstanding = client.productCost * (1 - client.downPaymentPct / 100);
     const { data, error } = await supabase.from('renegotiations').insert({
       user_id: u?.id,
+      org_id: orgId,
       client_id: clientId,
       old_term_months: client.termMonths,
       new_term_months: newTermMonths,
@@ -1051,6 +1152,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       for (let w = maxWeekApplied + 1; w <= weeksLate; w++) {
         const { data, error } = await supabase.from('late_fees').insert({
           user_id: u.id,
+        org_id: orgId,
           client_id: inv.clientId,
           invoice_id: inv.id,
           amount: WEEKLY_FEE,
@@ -1086,6 +1188,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ...state,
     user,
     loading,
+    loadError,
+    retryLoad,
     setRole,
     addClient,
     updateClient,
@@ -1117,7 +1221,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     applyLateFees,
     sendWhatsApp,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [state, user, loading]);
+  }), [state, user, loading, loadError, retryLoad]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

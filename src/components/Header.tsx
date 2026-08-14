@@ -9,6 +9,7 @@ import {
   User,
   HelpCircle,
   Sparkles,
+  Menu,
 } from 'lucide-react';
 import { ROLES } from '../data';
 import { useStore, useCurrentRole } from '../store';
@@ -24,7 +25,7 @@ const ROLE_ICONS: Record<Role, typeof ShieldCheck> = {
   vendedor: User,
 };
 
-export function Header({ onOpenTour, onNavigate, notificationSlot }: { onOpenTour: () => void; onNavigate?: (p: import('../types').Permission) => void; notificationSlot?: React.ReactNode; }) {
+export function Header({ onOpenTour, onOpenSidebar, onNavigate, notificationSlot }: { onOpenTour: () => void; onOpenSidebar?: () => void; onNavigate?: (p: import('../types').Permission) => void; notificationSlot?: React.ReactNode; }) {
   const { role, setRole } = useStore();
   const current = useCurrentRole();
   const { user } = useAuth();
@@ -46,7 +47,7 @@ export function Header({ onOpenTour, onNavigate, notificationSlot }: { onOpenTou
   return (
     <header
       data-tour="header"
-      className="sticky top-0 z-30 border-b border-white/[0.06] bg-ink-950/80 backdrop-blur-xl"
+      className="sticky top-0 z-20 border-b border-tint/[0.06] bg-ink-950/80 backdrop-blur-xl"
     >
       {/* Subtle gradient line at top */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-accent-500/20 to-transparent" />
@@ -54,15 +55,22 @@ export function Header({ onOpenTour, onNavigate, notificationSlot }: { onOpenTou
       <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
         {/* Brand */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={onOpenSidebar}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-300 hover:bg-tint/5 hover:text-metal-100 transition-colors lg:hidden"
+            aria-label="Abrir menú"
+          >
+            <Menu size={19} />
+          </button>
           <motion.div
             whileHover={{ scale: 1.08, rotate: -3 }}
             transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-            className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-violet-500 shadow-glow"
+            className="grid h-9 w-9 place-items-center rounded-xl bg-ink-900/80 ring-1 ring-accent-500/30 shadow-glow"
           >
-            <Sparkles size={18} className="text-white" />
+            <Sparkles size={18} className="text-metal-100" />
           </motion.div>
           <div className="hidden sm:block">
-            <h1 className="font-display text-base font-semibold text-white leading-none tracking-tight">
+            <h1 className="font-display text-base font-medium text-metal-100 leading-none tracking-tight">
               XiX Tech
             </h1>
             <p className="text-[11px] text-slate-500 mt-0.5">CRM de Ventas a Crédito</p>
@@ -90,15 +98,15 @@ export function Header({ onOpenTour, onNavigate, notificationSlot }: { onOpenTou
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setOpen((v) => !v)}
-              className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-ink-850/60 px-2.5 py-1.5 hover:border-accent-500/40 transition-all duration-200"
+              className="flex items-center gap-2.5 rounded-xl border border-tint/10 bg-ink-850/60 px-2.5 py-1.5 hover:border-accent-500/40 transition-all duration-200"
             >
               <div
-                className={`grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br ${current.color} text-white text-xs font-semibold shadow-sm`}
+                className={`grid h-7 w-7 place-items-center rounded-lg bg-ink-900/80 ring-1 ring-tint/10 text-accent-300 text-xs font-semibold`}
               >
                 {current.initials}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-medium text-white leading-none">
+                <p className="text-xs font-medium text-metal-100 leading-none">
                   {current.label}
                 </p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Perfil activo</p>
@@ -118,7 +126,7 @@ export function Header({ onOpenTour, onNavigate, notificationSlot }: { onOpenTou
                   transition={{ duration: 0.15 }}
                   className="absolute right-0 mt-2 w-72 card p-2 z-40"
                 >
-                  <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-slate-500">
+                  <p className="px-3 py-1.5 kicker">
                     Cambiar perfil
                   </p>
                   {ROLES.map((r) => {
@@ -132,18 +140,18 @@ export function Header({ onOpenTour, onNavigate, notificationSlot }: { onOpenTou
                           setOpen(false);
                         }}
                         className={`w-full flex items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200 ${
-                          active ? 'bg-accent-500/10 ring-1 ring-accent-500/20' : 'hover:bg-white/5'
+                          active ? 'bg-accent-500/10 ring-1 ring-accent-500/20' : 'hover:bg-tint/5'
                         }`}
                       >
                         <div
-                          className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${r.color} text-white text-[11px] font-semibold shadow-sm`}
+                          className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-900/80 ring-1 ring-tint/10 text-accent-300 text-[11px] font-semibold`}
                         >
                           {r.initials}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <Icon size={13} className="text-slate-400" />
-                            <p className="text-sm font-medium text-white">{r.label}</p>
+                            <p className="text-sm font-medium text-metal-100">{r.label}</p>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5 leading-snug">
                             {r.description}

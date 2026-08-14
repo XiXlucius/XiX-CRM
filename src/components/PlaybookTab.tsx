@@ -19,13 +19,13 @@ import type { Objection, RESPhase, RoleplayNode, RoleplayOption } from '../types
 import { Card, SectionHeader, EmptyState } from './ui';
 
 const PHASE_META: Record<RESPhase, { label: string; icon: typeof Heart; color: string; bg: string }> = {
-  relacion: { label: 'Relación', icon: Heart, color: 'text-rose-300', bg: 'from-rose-500/20 to-rose-500/5' },
-  educacion: { label: 'Educación', icon: Brain, color: 'text-sky-300', bg: 'from-sky-500/20 to-sky-500/5' },
+  relacion: { label: 'Relación', icon: Heart, color: 'text-metal-300', bg: 'from-metal-700/25 to-metal-700/10' },
+  educacion: { label: 'Educación', icon: Brain, color: 'text-accent-300', bg: 'from-accent-500/20 to-accent-500/5' },
   solucion: { label: 'Solución', icon: Lightbulb, color: 'text-success-500', bg: 'from-success/20 to-success/5' },
 };
 
 const DIFFICULTY_STYLES: Record<string, string> = {
-  frecuente: 'bg-sky-500/15 text-sky-300',
+  frecuente: 'bg-metal-700/20 text-metal-300',
   compleja: 'bg-warning/15 text-warning-400',
   agresiva: 'bg-danger/15 text-danger-400',
 };
@@ -50,7 +50,7 @@ export function PlaybookTab() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex flex-1 sm:flex-initial items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-white'
+              tab === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-metal-100'
             }`}
           >
             <t.icon /> {t.label}
@@ -85,14 +85,14 @@ function ObjectionLibrary() {
     <div className="space-y-3">
       <Card className="p-4">
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent-500/20 to-violet-500/20 text-accent-300">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300">
             <Lightbulb size={18} />
           </div>
           <div>
-            <p className="font-display text-sm font-semibold text-white">El método R.E.S.</p>
+            <p className="font-display text-sm font-medium text-metal-100">El método R.E.S.</p>
             <p className="mt-1 text-sm text-slate-400 leading-relaxed">
-              Tres fases para convertir resistencia en colaboración: <span className="text-rose-300">Relación</span> (empatizar),
-              <span className="text-sky-300"> Educación</span> (reencuadrar) y
+              Tres fases para convertir resistencia en colaboración: <span className="text-metal-300">Relación</span> (empatizar),
+              <span className="text-accent-300"> Educación</span> (reencuadrar) y
               <span className="text-success-500"> Solución</span> (ofrecer una opción concreta).
             </p>
           </div>
@@ -106,7 +106,7 @@ function ObjectionLibrary() {
             className="w-full text-left p-4 flex items-start justify-between gap-3"
           >
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-white">{o.text}</p>
+              <p className="font-medium text-metal-100">{o.text}</p>
               <p className="mt-1 text-xs text-slate-500">{o.context}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -128,7 +128,7 @@ function ObjectionLibrary() {
                     const meta = PHASE_META[step.phase];
                     const Icon = meta.icon;
                     return (
-                      <div key={i} className={`rounded-xl bg-gradient-to-br ${meta.bg} p-4 ring-1 ring-white/5`}>
+                      <div key={i} className={`rounded-xl bg-gradient-to-br ${meta.bg} p-4 ring-1 ring-tint/5`}>
                         <div className="flex items-center gap-2">
                           <span className={`grid h-7 w-7 place-items-center rounded-lg bg-ink-900/40 ${meta.color}`}>
                             <Icon size={14} />
@@ -194,7 +194,7 @@ function RoleplaySimulator() {
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="font-display text-sm font-semibold text-white">Simulador de roleplay</p>
+            <p className="font-display text-sm font-medium text-metal-100">Simulador de roleplay</p>
             <p className="text-xs text-slate-500">Practica el método R.E.S. en tiempo real</p>
           </div>
           <button onClick={restart} className="btn-ghost text-xs">
@@ -254,12 +254,12 @@ function RoleplaySimulator() {
         {/* Options */}
         {node.options && !feedback && history.length > 0 && (
           <div className="mt-4 space-y-2">
-            <p className="text-[10px] uppercase tracking-wider text-slate-500">Tu respuesta como agente:</p>
+            <p className="kicker">Tu respuesta como agente:</p>
             {node.options.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => choose(opt)}
-                className="w-full text-left rounded-xl border border-white/10 bg-ink-900/40 px-4 py-3 text-sm text-slate-200 hover:border-accent-500/40 hover:bg-accent-500/5 transition-colors"
+                className="w-full text-left rounded-xl border border-tint/10 bg-ink-900/40 px-4 py-3 text-sm text-slate-200 hover:border-accent-500/40 hover:bg-accent-500/5 transition-colors"
               >
                 {opt.text}
               </button>
@@ -290,7 +290,7 @@ function RoleplaySimulator() {
                  outcome === 'retry' ? <AlertCircle size={24} /> :
                  <XCircle size={24} />}
               </div>
-              <p className="mt-2 font-display text-base font-semibold text-white">
+              <p className="mt-2 font-display text-base font-medium text-metal-100">
                 {outcome === 'win' ? '¡Venta cerrada!' : outcome === 'retry' ? 'Cliente se cerró' : 'Conversación perdida'}
               </p>
               <p className="mt-1 text-sm text-slate-400">{node.feedback}</p>
@@ -309,10 +309,10 @@ function ChatBubble({ node }: { node: RoleplayNode }) {
   if (node.speaker === 'cliente') {
     return (
       <div className="flex justify-start">
-        <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-ink-900/60 px-4 py-2.5 ring-1 ring-white/5">
+        <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-ink-900/60 px-4 py-2.5 ring-1 ring-tint/5">
           <div className="flex items-center gap-1.5 mb-1">
             <User size={11} className="text-slate-400" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">Cliente</span>
+            <span className="kicker">Cliente</span>
           </div>
           <p className="text-sm text-slate-200">{node.text}</p>
         </div>

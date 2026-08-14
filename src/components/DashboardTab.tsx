@@ -23,7 +23,8 @@ import {
 } from 'recharts';
 import { useStore } from '../store';
 import { CaracasHeatmap } from './CaracasHeatmap';
-import { Card, SectionHeader, AnimatedNumber, fmtMoney, fmtPct } from './ui';
+import { Card, SectionHeader, fmtMoney, fmtPct } from './ui';
+import { AnimatedCounter } from './AnimatedCounter';
 import { useCurrentRole } from '../store';
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
@@ -91,12 +92,12 @@ export function DashboardTab() {
       counts[c.status] = (counts[c.status] ?? 0) + 1;
     });
     return [
-      { name: 'Prospecto', value: counts.prospecto ?? 0, color: '#64748b' },
-      { name: 'Revisión', value: counts.en_revision ?? 0, color: '#f59e0b' },
-      { name: 'Aprobado', value: counts.aprobado ?? 0, color: '#0ea5e9' },
-      { name: 'Activo', value: counts.activo ?? 0, color: '#10b981' },
-      { name: 'Mora', value: counts.en_mora ?? 0, color: '#ef4444' },
-      { name: 'Rechazado', value: counts.rechazado ?? 0, color: '#9f1239' },
+      { name: 'Prospecto', value: counts.prospecto ?? 0, color: '#75798c' },
+      { name: 'Revisión', value: counts.en_revision ?? 0, color: '#c9ae7d' },
+      { name: 'Aprobado', value: counts.aprobado ?? 0, color: '#b5abfc' },
+      { name: 'Activo', value: counts.activo ?? 0, color: '#86b298' },
+      { name: 'Mora', value: counts.en_mora ?? 0, color: '#d09090' },
+      { name: 'Rechazado', value: counts.rechazado ?? 0, color: '#595d6c' },
     ];
   }, [scopedClients]);
 
@@ -112,7 +113,7 @@ export function DashboardTab() {
   return (
     <div data-tour="dashboard" className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-semibold text-white tracking-tight">
+        <h1 className="font-display text-2xl font-medium text-metal-100 tracking-tight">
           Panel ejecutivo
         </h1>
         <p className="text-sm text-slate-400 mt-1">
@@ -124,7 +125,7 @@ export function DashboardTab() {
       {agents.length > 2 && (
         <Card className="p-3">
           <div className="flex items-center gap-3">
-            <span className="text-xs uppercase tracking-wider text-slate-500">Filtrar por agente:</span>
+            <span className="kicker">Filtrar por agente:</span>
             <select
               value={agentFilter}
               onChange={(e) => setAgentFilter(e.target.value)}
@@ -142,7 +143,7 @@ export function DashboardTab() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Tasa de Conversión"
           value={kpis.conversion}
@@ -199,36 +200,36 @@ export function DashboardTab() {
             subtitle="Últimos 6 meses · valores en USD"
             icon={<Activity size={16} />}
           />
-          <div className="h-64">
+          <div className="h-[220px] sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData} margin={{ left: -16, right: 8, top: 4 }}>
                 <defs>
                   <linearGradient id="gCartera" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366f1" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#9184d9" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#9184d9" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gCobranza" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="0%" stopColor="#86b298" stopOpacity={0.35} />
                     <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1c2942" vertical={false} />
-                <XAxis dataKey="month" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#3f424d" vertical={false} />
+                <XAxis dataKey="month" stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip
                   contentStyle={{
-                    background: '#0f172a',
-                    border: '1px solid #1c2942',
+                    background: '#232532',
+                    border: '1px solid #3f424d',
                     borderRadius: 12,
                     fontSize: 12,
                   }}
-                  labelStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: '#b2b6ca' }}
                 />
                 <Area
                   type="monotone"
                   dataKey="cartera"
                   name="Cartera"
-                  stroke="#818cf8"
+                  stroke="#b5abfc"
                   strokeWidth={2}
                   fill="url(#gCartera)"
                 />
@@ -236,7 +237,7 @@ export function DashboardTab() {
                   type="monotone"
                   dataKey="cobranza"
                   name="Cobranza"
-                  stroke="#10b981"
+                  stroke="#86b298"
                   strokeWidth={2}
                   fill="url(#gCobranza)"
                 />
@@ -251,15 +252,15 @@ export function DashboardTab() {
             subtitle={`${kpis.total} clientes en cartera`}
             icon={<Activity size={16} />}
           />
-          <div className="h-64">
+          <div className="h-[220px] sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statusBreakdown} layout="vertical" margin={{ left: 20, right: 16 }}>
-                <XAxis type="number" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="name" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} width={70} />
+                <XAxis type="number" stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" stroke="#75798c" fontSize={11} tickLine={false} axisLine={false} width={70} />
                 <Tooltip
                   contentStyle={{
-                    background: '#0f172a',
-                    border: '1px solid #1c2942',
+                    background: '#232532',
+                    border: '1px solid #3f424d',
                     borderRadius: 12,
                     fontSize: 12,
                   }}
@@ -292,15 +293,15 @@ export function DashboardTab() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="rounded-xl border border-white/5 bg-ink-900/40 p-4"
+                className="rounded-xl border border-tint/5 bg-ink-900/40 p-4"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 text-white text-xs font-semibold">
+                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-ink-900/60 ring-1 ring-tint/10 text-accent-300 text-xs font-semibold">
                       {m.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{m.name}</p>
+                      <p className="text-sm font-medium text-metal-100">{m.name}</p>
                       <p className="text-[11px] text-slate-500">Vendedor</p>
                     </div>
                   </div>
@@ -311,12 +312,12 @@ export function DashboardTab() {
                   )}
                 </div>
                 <div className="mt-3 flex items-end justify-between">
-                  <span className="font-mono text-lg text-white">
+                  <span className="num text-lg text-metal-100">
                     {fmtMoney(m.achievedMonthly)}
                   </span>
                   <span className="text-xs text-slate-500">/ {fmtMoney(m.goalMonthly)}</span>
                 </div>
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-tint/5">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(pct, 100)}%` }}
@@ -368,7 +369,7 @@ function KpiCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`card p-5 relative overflow-hidden bg-gradient-to-br ${accent}`}
+      className="card p-5 relative overflow-hidden"
     >
       <div className="flex items-start justify-between">
         <div className={`grid h-10 w-10 place-items-center rounded-xl bg-ink-900/40 ${iconColor}`}>
@@ -386,8 +387,8 @@ function KpiCard({
         </span>
       </div>
       <p className="mt-4 text-xs uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-1 font-display text-2xl font-semibold text-white">
-        <AnimatedNumber
+      <p className="mt-1 font-display text-2xl font-medium text-metal-100">
+        <AnimatedCounter
           value={value}
           prefix={prefix}
           suffix={suffix}
