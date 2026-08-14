@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, AlertTriangle, CalendarClock, X, ArrowRight, CircleDot } from 'lucide-react';
 import type { Invoice, Client } from '../types';
@@ -167,17 +167,45 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
   const hasMorosidad = day.totalMorosidad > 0;
   const hasRegulares = day.totalRegulares > 0;
 
+  // § 6.4 — glow por volumen. Prioridad: mora > 6+ cobros > 1+ cobros.
+  // El día de hoy conserva su anillo de acento y no se mezcla.
+  const count = day.morosidad.length + day.regulares.length;
+  let glowClass = '';
+  let tintStyle: CSSProperties = {};
+  if (day.isCurrentMonth && !day.isToday) {
+    if (hasMorosidad) {
+      glowClass = 'ntGlowRed';
+    } else if (count >= 6) {
+      glowClass = 'ntGlowBlue';
+      tintStyle = { background: 'rgba(150,138,224,0.16)' };
+    } else if (count >= 1) {
+      glowClass = 'ntGlowGreen';
+      tintStyle = { background: 'rgba(134,178,152,0.16)' };
+    }
+  }
+
+  // Duración y delay derivados del día del mes: desincroniza filas y columnas
+  // sin usar random (determinístico, estable entre renders).
+  const dnum = day.date.getDate();
+  const glowVars = glowClass
+    ? ({
+        '--gd': `${(1.8 + (dnum % 5) * 0.35).toFixed(2)}s`,
+        '--gl': `${((dnum % 7) * 0.22).toFixed(2)}s`,
+      } as CSSProperties)
+    : {};
+
   return (
     <button
       onClick={onClick}
       disabled={!hasActivity}
-      className={`relative flex flex-col items-stretch rounded-lg border p-1 sm:p-1.5 min-h-[64px] sm:min-h-[88px] transition-all ${
+      style={{ ...tintStyle, ...glowVars }}
+      className={`relative flex flex-col items-stretch rounded-lg border p-1 sm:p-1.5 min-h-[64px] sm:min-h-[88px] transition-all ${glowClass} ${
         !day.isCurrentMonth
           ? 'border-transparent bg-transparent opacity-40'
           : day.isToday
           ? 'border-accent-500/40 bg-accent-500/5'
           : hasActivity
-          ? 'border-tint/10 bg-ink-900/40 hover:border-accent-500/30 hover:bg-ink-900/70'
+          ? 'border-tint/10 hover:border-accent-500/30'
           : 'border-tint/5 bg-ink-900/20'
       } ${hasActivity ? 'cursor-pointer' : 'cursor-default'}`}
     >

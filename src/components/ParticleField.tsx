@@ -1,69 +1,75 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Campo de partículas de Nocturne.
- * Reemplaza el gradiente + rejilla que pintaba body::before.
- * Monta UNA sola vez, arriba del árbol, dentro de <App />:
+ * Constelación de fondo con física de repulsión al mouse.
  *
- *   <ParticleField />
- *   <div className="flex h-screen overflow-hidden"> ... </div>
+ * Reimplementación fiel del prototipo `XiX Tech CRM - Rediseño Nocturne.dc.html`,
+ * siguiendo HANDOFF-COMPLETO-PARA-CLAUDE-CODE.md § 6.1. Los valores no son
+ * inventados: son los del prototipo.
  *
- * Generación por área (no cantidad fija), así la densidad se mantiene
- * constante en móvil y en un monitor de 4K.
+ *   Login     → count 70, speed 0.16, lineDist 130, lineAlpha 0.22, dotAlpha 0.75
+ *   App shell → count 34, speed 0.09, lineDist 110, lineAlpha 0.10, dotAlpha 0.40
+ *
+ * Repulsión: radio 90px, force = (90 - dist) / 90 * 0.9, empuje en dirección
+ * contraria al cursor. Fuera de ese radio no hay fuerza — halo local, no gravedad.
+ * Bordes con wrap-around (reaparecen del lado opuesto, nunca rebotan).
  */
 
+type Variant = 'login' | 'app';
+
 type Props = {
-  /** Multiplicador de densidad. 1 = ~1 nodo por 10.500 px². */
-  density?: number;
-  /** Opacidad global 0-100. */
-  intensity?: number;
-  /** Dibujar líneas entre nodos cercanos. */
-  connections?: boolean;
-  /** rgb del acento. Por defecto el blurple de Nocturne. */
-  color?: [number, number, number];
+  variant?: Variant;
+  /** Overrides opcionales sobre el preset. */
+  count?: number;
+  speed?: number;
+  lineDist?: number;
+  lineAlpha?: number;
+  dotAlpha?: number;
 };
 
-export function ParticleField({
-  density = 1,
-  intensity = 30,
-  connections = true,
-  color = [145, 132, 217],
-}: Props) {
+const PRESETS: Record<Variant, Required<Omit<Props, 'variant'>>> = {
+  login: { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
+  app:   { count: 34, speed: 0.09, lineDist: 110, lineAlpha: 0.10, dotAlpha: 0.40 },
+};
+
+const RGB = '181,171,252';
+const REPEL_RADIUS = 90;
+const REPEL_STRENGTH = 0.9;
+
+export function ParticleField({ variant = 'app', ...overrides }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const preset = PRESETS[variant];
+  const count     = overrides.count     ?? preset.count;
+  const speed     = overrides.speed     ?? preset.speed;
+  const lineDist  = overrides.lineDist  ?? preset.lineDist;
+  const lineAlpha = overrides.lineAlpha ?? preset.lineAlpha;
+  const dotAlpha  = overrides.dotAlpha  ?? preset.dotAlpha;
 
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const I = (intensity / 100) * 1.6;
-    const rgb = color.join(',');
 
     let ctx: CanvasRenderingContext2D | null = null;
-    let w = 0, h = 0, raf = 0, lastT = 0, resizeTimer = 0;
+    let w = 0, h = 0, raf = 0, resizeTimer = 0;
 
-    type Node = {
-      x: number; y: number; vx: number; vy: number;
-      r: number; base: number; ph: number; sp: number; depth: number;
-    };
-    let nodes: Node[] = [];
+    // Coordenadas locales al canvas. Muy lejos = sin repulsión al inicio.
+    const mouse = { x: -9999, y: -9999 };
+
+    type P = { x: number; y: number; vx: number; vy: number; r: number; tw: number; tws: number };
+    let parts: P[] = [];
 
     const seed = () => {
-      const n = Math.max(24, Math.round(((w * h) / 10500) * density));
-      nodes = Array.from({ length: n }, () => {
-        const depth = 0.12 + Math.pow(Math.random(), 1.6) * 0.88;
-        return {
-          x: Math.random() * w,
-          y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 11,
-          vy: (Math.random() - 0.5) * 11,
-          r: 0.6 + depth * 1.5,
-          base: 0.2 + depth * 0.62,
-          ph: Math.random() * Math.PI * 2,
-          sp: 0.5 + Math.random() * 1.1,
-          depth,
-        };
-      });
+      parts = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * speed,
+        vy: (Math.random() - 0.5) * speed,
+        r: 0.9 + Math.random() * 1.4,          // 0.9 – 2.3
+        tw: Math.random() * Math.PI * 2,
+        tws: 0.02 + Math.random() * 0.03,      // 0.02 – 0.05
+      }));
     };
 
     const size = () => {
@@ -74,88 +80,65 @@ export function ParticleField({
       canvas.height = Math.round(h * dpr);
       ctx = canvas.getContext('2d');
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
-      seed();
+      if (!parts.length) seed(); else { seed(); }
     };
 
-    const draw = (now: number) => {
+    const draw = () => {
       raf = requestAnimationFrame(draw);
       if (!ctx || document.hidden) return;
 
-      const dt = Math.min(0.05, (now - (lastT || now)) / 1000);
-      lastT = now;
-      const t = now / 1000;
-
       ctx.clearRect(0, 0, w, h);
 
-      const pts: { x: number; y: number; r: number; a: number; d: number }[] = [];
-      for (const n of nodes) {
+      for (const p of parts) {
         if (!reduced) {
-          n.x += n.vx * dt;
-          n.y += n.vy * dt;
-          if (n.x < -40) n.x += w + 80; else if (n.x > w + 40) n.x -= w + 80;
-          if (n.y < -40) n.y += h + 80; else if (n.y > h + 40) n.y -= h + 80;
-        }
-        const breath = reduced ? 1 : 0.6 + 0.4 * Math.sin(t * n.sp + n.ph);
-        const a = Math.min(0.92, n.base * I) * breath;
-        if (a <= 0.006) continue;
-        pts.push({ x: n.x, y: n.y, r: n.r, a, d: n.depth });
-      }
-
-      // Conexiones — rejilla espacial, no comparación todos-contra-todos.
-      if (connections) {
-        const R = 132, cell = R;
-        const cols = Math.ceil(w / cell) + 1;
-        const rows = Math.ceil(h / cell) + 1;
-        const grid: (number[] | undefined)[] = new Array(cols * rows);
-        pts.forEach((p, i) => {
-          const cx = Math.max(0, Math.min(cols - 1, Math.floor(p.x / cell)));
-          const cy = Math.max(0, Math.min(rows - 1, Math.floor(p.y / cell)));
-          const k = cy * cols + cx;
-          (grid[k] || (grid[k] = [])).push(i);
-        });
-        ctx.lineWidth = 0.6;
-        for (let cy = 0; cy < rows; cy++) {
-          for (let cx = 0; cx < cols; cx++) {
-            const a = grid[cy * cols + cx];
-            if (!a) continue;
-            for (let oy = 0; oy <= 1; oy++) {
-              for (let ox = -1; ox <= 1; ox++) {
-                if (oy === 0 && ox < 0) continue;
-                const nx = cx + ox, ny = cy + oy;
-                if (nx < 0 || nx >= cols || ny >= rows) continue;
-                const bb = grid[ny * cols + nx];
-                if (!bb) continue;
-                for (const i of a) {
-                  for (const j of bb) {
-                    if (oy === 0 && ox === 0 && j <= i) continue;
-                    const p = pts[i], q = pts[j];
-                    const dx = p.x - q.x, dy = p.y - q.y;
-                    const d2 = dx * dx + dy * dy;
-                    if (d2 > R * R) continue;
-                    const al = (1 - Math.sqrt(d2) / R) * 0.3 * I * Math.max(p.d, q.d);
-                    if (al <= 0.004) continue;
-                    ctx.strokeStyle = `rgba(${rgb},${al.toFixed(3)})`;
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    ctx.lineTo(q.x, q.y);
-                    ctx.stroke();
-                  }
-                }
-              }
-            }
+          // 1. Repulsión al mouse.
+          const dx = p.x - mouse.x;
+          const dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < REPEL_RADIUS && dist > 0.01) {
+            const force = ((REPEL_RADIUS - dist) / REPEL_RADIUS) * REPEL_STRENGTH;
+            p.x += (dx / dist) * force;
+            p.y += (dy / dist) * force;
           }
+
+          // 2. Velocidad propia + parpadeo.
+          p.x += p.vx;
+          p.y += p.vy;
+          p.tw += p.tws;
+
+          // 3. Wrap-around.
+          if (p.x < -5) p.x = w + 5; else if (p.x > w + 5) p.x = -5;
+          if (p.y < -5) p.y = h + 5; else if (p.y > h + 5) p.y = -5;
         }
       }
 
-      ctx.lineCap = 'round';
-      for (const p of pts) {
-        ctx.strokeStyle = `rgba(${rgb},${p.a.toFixed(3)})`;
-        ctx.lineWidth = p.r * 1.6;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
+      // 4. Líneas entre partículas cercanas.
+      ctx.lineWidth = 0.6;
+      for (let i = 0; i < parts.length; i++) {
+        for (let j = i + 1; j < parts.length; j++) {
+          const a = parts[i], b = parts[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d >= lineDist) continue;
+          ctx.strokeStyle = `rgba(${RGB},${(lineAlpha * (1 - d / lineDist)).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
       }
+
+      // 5. Puntos con glow y parpadeo independiente.
+      for (const p of parts) {
+        const twinkle = 0.5 + 0.5 * Math.sin(p.tw);
+        ctx.shadowColor = `rgba(${RGB},0.9)`;
+        ctx.shadowBlur = 5 + 4 * twinkle;
+        ctx.fillStyle = `rgba(${RGB},${(dotAlpha * (0.55 + 0.45 * twinkle)).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * (0.75 + 0.35 * twinkle), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
 
       if (reduced) cancelAnimationFrame(raf); // una sola pasada
     };
@@ -165,16 +148,32 @@ export function ParticleField({
       resizeTimer = window.setTimeout(size, 120);
     };
 
+    // Listener global: funciona aunque el cursor esté sobre otro elemento encima.
+    const onMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    };
+    const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+
     size();
     raf = requestAnimationFrame(draw);
     window.addEventListener('resize', onResize);
+    if (!reduced) {
+      window.addEventListener('mousemove', onMove, { passive: true });
+      document.addEventListener('mouseleave', onLeave);
+      window.addEventListener('blur', onLeave);
+    }
 
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(resizeTimer);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseleave', onLeave);
+      window.removeEventListener('blur', onLeave);
     };
-  }, [density, intensity, connections, color]);
+  }, [count, speed, lineDist, lineAlpha, dotAlpha]);
 
   return (
     <canvas

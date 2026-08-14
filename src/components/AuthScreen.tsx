@@ -59,23 +59,24 @@ export function AuthScreen() {
     <div className="min-h-screen flex">
       {/* Left: editorial cover — hidden on mobile */}
       <div className="hidden lg:flex lg:w-[60%] relative flex-col justify-between p-[56px] overflow-hidden bg-obsidian-950">
-        <ParticleField density={0.8} intensity={40} />
+        <ParticleField variant="login" />
 
-        <div className="relative font-display text-[18px] font-medium text-metal-100">
+        {/* § 6.2 — el bloque entra desde la izquierda en cascada (0 / .2 / .4 / .5s) */}
+        <div className="relative font-display text-[18px] font-medium ntNeonBg ntNeonAnim ntInL ntInL-1">
           XiX Tech
         </div>
 
-        <div className="relative">
+        <div className="relative ntInL ntInL-2">
           <p className="kicker mb-3">CRM de Ventas a Crédito</p>
-          <h1 className="font-display font-medium text-metal-100 text-[clamp(46px,6vw,96px)] leading-[0.9] tracking-[-0.05em]">
+          <h1 className="font-display font-medium text-[clamp(46px,6vw,96px)] leading-[0.9] tracking-[-0.05em]">
             Gestiona tus ventas<br />con precisión.
           </h1>
-          <p className="mt-[40px] text-[15px] text-metal-300 max-w-[38ch] leading-relaxed">
+          <p className="mt-[40px] text-[15px] text-metal-300 max-w-[38ch] leading-relaxed ntInL ntInL-3">
             Pipeline inteligente, seguimiento de clientes y métricas en tiempo real — todo en un solo lugar.
           </p>
         </div>
 
-        <p className="relative text-[11px] text-metal-500">© 2025 XiX Tech. Todos los derechos reservados.</p>
+        <p className="relative text-[11px] text-metal-500 ntInL ntInL-4">© 2025 XiX Tech. Todos los derechos reservados.</p>
       </div>
 
       {/* Right: form — la columna es la superficie, sin tarjeta flotante */}

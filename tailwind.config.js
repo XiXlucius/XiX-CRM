@@ -151,11 +151,13 @@ export default {
         // full no se toca — Tailwind ya la deja en 9999px.
       },
       boxShadow: {
-        // Antes resplandores de color; ahora un filo de acento al 30%.
-        'glow-cyan':   '0 0 0 1px rgba(150,138,224,0.3)',
-        'glow-violet': '0 0 0 1px rgba(150,138,224,0.3)',
-        'glow-blue':   '0 0 0 1px rgba(150,138,224,0.3)',
-        'glow':        '0 0 0 1px rgba(150,138,224,0.3)',
+        // Resplandores reales restaurados. Nocturne los habia reducido a un
+        // filo de 1px sin brillo — es lo que hacia que todo se viera apagado.
+        'glow-cyan':   '0 0 0 1px rgba(0,212,255,0.35),   0 0 20px -2px rgba(0,212,255,0.45)',
+        'glow-violet': '0 0 0 1px rgba(124,58,237,0.4),   0 0 22px -2px rgba(124,58,237,0.5)',
+        'glow-blue':   '0 0 0 1px rgba(150,138,224,0.4),  0 0 20px -2px rgba(150,138,224,0.45)',
+        'glow':        '0 0 0 1px rgba(150,138,224,0.4),  0 0 18px -2px rgba(150,138,224,0.45)',
+        'glow-lg':     '0 0 0 1px rgba(150,138,224,0.5),  0 0 34px -4px rgba(150,138,224,0.6)',
         'card':        '0 0 0 1px #3f424d',
         'card-hover':  '0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,0.55)',
         'sidebar':     '1px 0 0 #3f424d',

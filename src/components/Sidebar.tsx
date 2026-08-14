@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Users, GraduationCap, MessageSquare, UsersRound,
   ReceiptText, Boxes, Settings, FileBarChart, History, Route,
-  ChevronLeft, ChevronRight, LogOut, Zap,
+  ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStore, useCurrentRole } from '../store';
@@ -79,13 +79,30 @@ export default function Sidebar({ active, onNavigate, open, onClose }: Props) {
       >
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 py-5 ${collapsed ? 'justify-center px-0' : ''}`}>
-        <div className="relative h-8 w-8 shrink-0 grid place-items-center rounded-xl bg-ink-900/80 ring-1 ring-accent-500/30 shadow-glow">
-          <Zap size={15} className="text-metal-100" />
+        {/* § 6.6 — logo de constelación con halo pulsante */}
+        <div
+          className="relative h-8 w-8 shrink-0 grid place-items-center rounded-xl"
+          style={{
+            background: 'linear-gradient(135deg, var(--color-accent-500), var(--color-accent-700))',
+            boxShadow: '0 0 18px 3px rgba(145,132,217,0.7)',
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" className="ntConstellation">
+            <path d="M4 19 L10.5 8.5"   stroke="#f4f3ff" strokeWidth="1.1" opacity="0.8" />
+            <path d="M10.5 8.5 L17 12.5" stroke="#f4f3ff" strokeWidth="1.1" opacity="0.7" />
+            <path d="M17 12.5 L20.5 5"   stroke="#f4f3ff" strokeWidth="1.1" opacity="0.6" />
+            <path d="M10.5 8.5 L6.5 4"   stroke="#f4f3ff" strokeWidth="1.1" opacity="0.55" />
+            <circle cx="4"    cy="19"   r="1.4" fill="#ffffff" />
+            <circle cx="10.5" cy="8.5"  r="2.2" fill="#ffffff" />
+            <circle cx="17"   cy="12.5" r="1.6" fill="#ffffff" />
+            <circle cx="20.5" cy="5"    r="1.2" fill="#ffffff" />
+            <circle cx="6.5"  cy="4"    r="1.2" fill="#ffffff" />
+          </svg>
           <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-accent-400 ring-2 ring-obsidian-950" />
         </div>
         {!collapsed && (
           <div className="animate-fade-in">
-            <p className="font-display font-medium text-sm text-metal-100 leading-none">XiX Tech</p>
+            <p className="font-display font-medium text-sm leading-none ntNeonBg ntNeonAnim">XiX Tech</p>
             <p className="text-2xs text-metal-500 mt-0.5">CRM Platform</p>
           </div>
         )}

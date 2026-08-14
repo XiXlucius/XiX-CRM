@@ -69,7 +69,7 @@ function AppShell() {
   return (
     <>
       {/* Nocturne: reemplaza el gradiente + rejilla que pintaba body::before */}
-      <ParticleField density={1} intensity={30} />
+      <ParticleField variant="app" />
 
       <div className="flex h-screen overflow-hidden">
         <Sidebar active={activeTab} onNavigate={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -80,6 +80,9 @@ function AppShell() {
             notificationSlot={<NotificationBell onNavigate={navigate} />}
           />
           <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-5 sm:px-6">
+            {/* § 6.2 — el bloque completo entra desde la derecha en cada cambio
+                de pestaña. La `key` es lo que vuelve a disparar la animación. */}
+            <div key={activeTab} className="ntInR">
             {activeTab === 'dashboard'  && <DashboardTab />}
             {activeTab === 'crm'        && <CrmTab initialClientId={crmInitialClient} />}
             {activeTab === 'courses'    && <CursoTab />}
@@ -91,6 +94,7 @@ function AppShell() {
             {activeTab === 'config'     && <ConfigTab />}
             {activeTab === 'reportes'   && <ReportesTab />}
             {activeTab === 'auditoria'  && <AuditoriaTab />}
+            </div>
           </main>
         </div>
 
