@@ -20,9 +20,9 @@
  */
 
 const seen = new WeakSet<Element>();
-// h1/h2 llevan el barrido por CSS global, así que también entran aquí para que
-// cada uno arranque en una fase distinta.
-const SELECTOR = '.ntNeonBg, .ntNeonAnim, h1, h2';
+// Los títulos entran también: el CSS les aplica el barrido bajo `.neon-titles`,
+// y aquí cada uno recibe su propia duración y fase para que no vayan en bloque.
+const SELECTOR = '.ntNeonBg, .ntNeonAnim, h1, h2, h3';
 
 function assign(el: Element) {
   if (seen.has(el)) return;
@@ -45,6 +45,11 @@ export function startNeonSweep() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const boot = () => {
+    // Activa el barrido en los títulos. Se pone AQUI a propósito, ya con la
+    // página en pie: si algo revienta antes, los títulos nunca quedan
+    // transparentes y la app sigue legible.
+    document.documentElement.classList.add('neon-titles');
+
     scan(document.body);
     observer = new MutationObserver((records) => {
       for (const r of records) {

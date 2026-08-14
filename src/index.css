@@ -76,19 +76,11 @@ body {
 
 h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.015em; }
 
-/* h1/h2 llevan el barrido láser (§ 6.5) — se aplican solos, sin tocar los .tsx.
-   h3/h4 llevan solo halo, para no saturar. */
-h1, h2 {
-  background-image: linear-gradient(100deg,
-    #e9e9ed 38%, #ffffff 47%, #e3ddff 49%, #b5abfc 51%,
-    #9184d9 53%, #ffffff 55%, #e9e9ed 62%);
-  background-size: 240% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: ntLaser var(--nd, 3.4s) linear var(--nl, 0s) infinite;
-}
-h3, h4 {
+/* Halo en los títulos. El barrido láser (§ 6.5) NO se aplica global: va como
+   clase opt-in `.ntNeonBg .ntNeonAnim`, igual que en el prototipo.
+   Motivo: aplicarlo a todo h1/h2 obliga a `color: transparent`, y si el
+   navegador no pinta el `background-clip: text` el texto queda INVISIBLE. */
+h1, h2, h3, h4 {
   text-shadow:
     0 0 16px color-mix(in srgb, var(--glow-accent) calc(30% * var(--neon)), transparent),
     0 0 38px color-mix(in srgb, var(--glow-accent) calc(15% * var(--neon)), transparent);
@@ -184,14 +176,34 @@ body::before {
 .ntGlowRed   { animation: ntGlowRed   var(--gd, 2s) ease-in-out var(--gl, 0s) infinite; }
 
 /* ── § 6.5 — Barrido láser neón en títulos ────────────────────────────── */
-.ntNeonBg {
-  background-image: linear-gradient(100deg,
-    #e9e9ed 38%, #ffffff 47%, #e3ddff 49%, #b5abfc 51%,
-    #9184d9 53%, #ffffff 55%, #e9e9ed 62%);
-  background-size: 240% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Color de respaldo primero: si el navegador no soporta `background-clip: text`
+   el texto se ve normal en vez de desaparecer. */
+.ntNeonBg { color: var(--color-text); }
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .ntNeonBg,
+  /* Todos los títulos. El prefijo `.neon-titles` lo pone el JS DESPUÉS de que la
+     app arranca: si algo falla antes, el texto nunca queda transparente.
+     Y `.neon-titles h1` (0,1,1) gana a las clases de color de Tailwind (0,1,0),
+     así que no hace falta !important. */
+  .neon-titles h1,
+  .neon-titles h2,
+  .neon-titles h3 {
+    background-image: linear-gradient(100deg,
+      #e9e9ed 38%, #ffffff 47%, #e3ddff 49%, #b5abfc 51%,
+      #9184d9 53%, #ffffff 55%, #e9e9ed 62%);
+    background-size: 240% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .neon-titles h1,
+  .neon-titles h2,
+  .neon-titles h3 {
+    animation: ntLaser var(--nd, 3.4s) linear var(--nl, 0s) infinite;
+  }
 }
 .ntNeonAnim { animation: ntLaser var(--nd, 3.4s) linear var(--nl, 0s) infinite; }
 @keyframes ntLaser {
