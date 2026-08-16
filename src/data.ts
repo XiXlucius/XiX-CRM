@@ -91,47 +91,14 @@ export const NAV_ITEMS: NavItem[] = [
 // Caracas municipalities — stylized SVG shapes
 // ============================================================
 
+// Solo referencia geográfica. Los totales por municipio se calculan de los
+// clientes reales — ver CaracasHeatmap.
 export const CARACAS_MUNICIPALITIES: CaracasMunicipality[] = [
-  {
-    id: 'libertador',
-    name: 'Libertador',
-    applications: 312,
-    approved: 187,
-    lat: 10.506,
-    lng: -66.916,
-  },
-  {
-    id: 'chacao',
-    name: 'Chacao',
-    applications: 198,
-    approved: 142,
-    lat: 10.485,
-    lng: -66.855,
-  },
-  {
-    id: 'baruta',
-    name: 'Baruta',
-    applications: 167,
-    approved: 118,
-    lat: 10.43,
-    lng: -66.87,
-  },
-  {
-    id: 'sucre',
-    name: 'Sucre',
-    applications: 143,
-    approved: 89,
-    lat: 10.49,
-    lng: -66.83,
-  },
-  {
-    id: 'hatillo',
-    name: 'El Hatillo',
-    applications: 78,
-    approved: 41,
-    lat: 10.43,
-    lng: -66.82,
-  },
+  { id: 'libertador', name: 'Libertador', lat: 10.506, lng: -66.916 },
+  { id: 'chacao',     name: 'Chacao',     lat: 10.485, lng: -66.855 },
+  { id: 'baruta',     name: 'Baruta',     lat: 10.43,  lng: -66.87  },
+  { id: 'sucre',      name: 'Sucre',      lat: 10.49,  lng: -66.83  },
+  { id: 'hatillo',    name: 'El Hatillo', lat: 10.43,  lng: -66.82  },
 ];
 
 // ============================================================

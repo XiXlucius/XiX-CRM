@@ -115,14 +115,29 @@ export function ConfigTab() {
 
       {/* Scoring weights */}
       <Card className="p-5">
-        <SectionHeader title="Pesos del motor de scoring" subtitle="Deben sumar 100% en total" icon={<Sliders size={16} />} />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <NumberField label="Peso inicial (%)" value={form.scoring_weight_downpayment} onChange={(v) => set('scoring_weight_downpayment', v)} />
-          <NumberField label="Peso plazo (%)" value={form.scoring_weight_term} onChange={(v) => set('scoring_weight_term', v)} />
+        <SectionHeader
+          title="Pesos del motor de scoring"
+          subtitle="Reparten el puntaje de riesgo entre los cinco criterios"
+          icon={<Sliders size={16} />}
+        />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <NumberField label="Peso ingreso (%)" value={form.scoring_weight_income} onChange={(v) => set('scoring_weight_income', v)} />
-          <NumberField label="Peso historial (%)" value={form.scoring_weight_history} onChange={(v) => set('scoring_weight_history', v)} />
+          <NumberField label="Peso antigüedad laboral (%)" value={form.scoring_weight_tenure} onChange={(v) => set('scoring_weight_tenure', v)} />
+          <NumberField label="Peso carga de la cuota (%)" value={form.scoring_weight_term} onChange={(v) => set('scoring_weight_term', v)} />
+          <NumberField label="Peso historial de pago (%)" value={form.scoring_weight_history} onChange={(v) => set('scoring_weight_history', v)} />
+          <NumberField label="Peso cédula física (%)" value={form.scoring_weight_id} onChange={(v) => set('scoring_weight_id', v)} />
         </div>
         <WeightSummary form={form} />
+
+        <div className="mt-4 pt-4 border-t border-tint/5">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <NumberField label="Bono por inicial (puntos)" value={form.scoring_weight_downpayment} onChange={(v) => set('scoring_weight_downpayment', v)} />
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Esto no es un peso: son puntos que se <span className="text-metal-100">suman</span> al score
+            cuando el cliente da alguna inicial. No dar inicial no resta nada.
+          </p>
+        </div>
       </Card>
 
       <div className="flex justify-end gap-2">
@@ -306,15 +321,26 @@ function NumberField({ label, value, onChange, icon }: { label: string; value: n
   );
 }
 
+// El bono por inicial NO entra aquí: no es un peso, se suma aparte.
+// (Antes esta suma incluía el bono y omitía antigüedad y cédula, así que
+// marcaba error permanente aunque la configuración estuviera bien.)
 function WeightSummary({ form }: { form: BusinessSettings }) {
-  const total = form.scoring_weight_downpayment + form.scoring_weight_term + form.scoring_weight_income + form.scoring_weight_history;
-  const valid = Math.abs(total - 100) < 0.1;
+  const total =
+    form.scoring_weight_income +
+    form.scoring_weight_tenure +
+    form.scoring_weight_term +
+    form.scoring_weight_history +
+    form.scoring_weight_id;
+  const exact = Math.abs(total - 100) < 0.1;
   return (
-    <div className={`mt-4 rounded-xl p-3 text-sm ${valid ? 'bg-success/10 text-success-500' : 'bg-danger/10 text-danger-400'}`}>
-      {valid ? (
-        <>✓ Los pesos suman 100% correctamente</>
+    <div className={`mt-4 rounded-xl p-3 text-sm ${exact ? 'bg-success/10 text-success-500' : 'bg-warning/10 text-warning-400'}`}>
+      {exact ? (
+        <>✓ Los pesos suman 100%</>
       ) : (
-        <>⚠ Los pesos suman {total.toFixed(1)}% — deben sumar 100%</>
+        <>
+          Los pesos suman {total.toFixed(1)}%. Funciona igual — el motor reparte el
+          puntaje en proporción — pero es más fácil de leer si suman 100.
+        </>
       )}
     </div>
   );

@@ -611,11 +611,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.firstPaymentDate !== undefined) dbPatch.first_payment_date = patch.firstPaymentDate;
     if (patch.latitude !== undefined) dbPatch.latitude = patch.latitude;
     if (patch.longitude !== undefined) dbPatch.longitude = patch.longitude;
+
+    // Recalcular el score si cambió algo que lo afecta. Antes solo se guardaba
+    // risk_score si el llamador lo pasaba explícito, así que editar el ingreso o
+    // la antigüedad de un cliente dejaba su puntaje congelado en el valor que
+    // tenía al registrarse. Se recalcula sobre el cliente YA con el patch aplicado.
+    const SCORING_FIELDS = [
+      'monthlyIncome', 'employmentTenure', 'hasPhysicalId', 'downPaymentPct',
+      'productCost', 'interestRate', 'frequency', 'termMonths', 'status',
+    ] as const;
+    const scoringChanged = SCORING_FIELDS.some((k) => patch[k] !== undefined);
+    let recomputed: number | undefined;
+    if (old && scoringChanged && patch.riskScore === undefined) {
+      recomputed = assessRisk({ ...old, ...patch }, state.settings).score;
+      dbPatch.risk_score = recomputed;
+    }
+
     const { error } = await supabase.from('clients').update(dbPatch).eq('id', id);
     if (error) throw error;
     setState((s) => ({
       ...s,
-      clients: s.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      clients: s.clients.map((c) =>
+        c.id === id
+          ? { ...c, ...patch, ...(recomputed !== undefined ? { riskScore: recomputed } : {}) }
+          : c,
+      ),
     }));
     await logAudit('update', 'client', id, old ? { status: old.status } : null, dbPatch);
   };

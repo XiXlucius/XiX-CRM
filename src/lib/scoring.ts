@@ -7,7 +7,17 @@ export interface BusinessSettings {
   commission_tier2: number;
   commission_tier3: number;
   stock_alert_threshold: number;
+  /**
+   * OJO — este campo NO es un peso, es un BONO en puntos.
+   * En este negocio la mayoría de los clientes no da inicial, así que no tenerla
+   * no debe restar (ver ajuste pedido por Lucius, 2026-08). Se suma tal cual al
+   * score final cuando el cliente sí da alguna inicial (>0%).
+   * Se conserva el nombre de columna para no migrar la base de datos.
+   */
   scoring_weight_downpayment: number;
+  // Los cinco de abajo sí son pesos: se reparten el score base 0-100.
+  // No hace falta que sumen exactamente 100 — el motor normaliza por la suma
+  // real, así que bajar todos a la mitad no hunde a todos los clientes.
   scoring_weight_term: number;
   scoring_weight_income: number;
   scoring_weight_history: number;
@@ -22,11 +32,11 @@ export const DEFAULT_SETTINGS: BusinessSettings = {
   commission_tier2: 4,
   commission_tier3: 5,
   stock_alert_threshold: 80,
-  scoring_weight_downpayment: 22,
-  scoring_weight_term: 16,
-  scoring_weight_income: 20,
+  scoring_weight_downpayment: 15, // bono, no peso
+  scoring_weight_income: 30,
+  scoring_weight_tenure: 22,
+  scoring_weight_term: 20,
   scoring_weight_history: 20,
-  scoring_weight_tenure: 14,
   scoring_weight_id: 8,
 };
 
@@ -48,34 +58,65 @@ export const TENURE_OPTIONS: { value: EmploymentTenure; label: string }[] = [
   { value: 'gt-2y', label: 'Más de 2 años' },
 ];
 
-/** Tenure qualifies for the "6 months or more" threshold the user described. */
-function tenureAtLeast6m(t: EmploymentTenure): boolean {
-  return t === '6m-1y' || t === '1-2y' || t === 'gt-2y';
+// ─── Factores 0–1 ────────────────────────────────────────────────────────
+// Cada factor devuelve qué tan bien sale el cliente en ese criterio, de 0 (lo
+// peor) a 1 (lo mejor). Luego se multiplican por su peso configurable.
+
+function incomeFactor(income: number): number {
+  if (income >= 400) return 1;
+  if (income >= 300) return 0.85;
+  if (income >= 200) return 0.6;
+  if (income >= 120) return 0.35;
+  return 0.1;
+}
+
+function tenureFactor(t: EmploymentTenure): number {
+  switch (t) {
+    case 'gt-2y': return 1;
+    case '1-2y':  return 0.85;
+    case '6m-1y': return 0.7;
+    case '4-6m':  return 0.35;
+    default:      return 0; // lt-3m — prohibido igual
+  }
+}
+
+/** Carga de la cuota frente al ingreso. Menos carga = mejor. */
+function burdenFactor(ratio: number): number {
+  if (ratio < 0.1) return 1;
+  if (ratio < 0.2) return 0.85;
+  if (ratio < 0.3) return 0.6;
+  if (ratio < 0.4) return 0.35;
+  return 0.1;
+}
+
+function historyFactor(status: Client['status'] | undefined): number {
+  switch (status) {
+    case 'activo':    return 1;
+    case 'en_mora':   return 0.15;
+    case 'rechazado': return 0.3;
+    default:          return 0.75; // prospecto / en_revision / aprobado — sin historial aún
+  }
 }
 
 /**
- * Credit risk scoring engine — rule-based, aligned con criterios del negocio.
- * Ajustado el 2026-08 a pedido de Lucius: el negocio casi nunca recibe inicial,
- * así que ya no se castiga no tenerla — solo se premia cuando sí la hay.
+ * Motor de scoring crediticio — modelo de factores ponderados.
  *
- * Hard prohibitions (sale cannot proceed):
- *   - No physical cédula
- *   - Less than 3 months at company
+ * Reescrito el 2026-08: antes los pesos de Configuración se recibían en un
+ * parámetro `_settings` que la función nunca leía, así que mover esas perillas
+ * no cambiaba absolutamente nada. Ahora sí gobiernan el resultado.
  *
- * Base score from the three key factors:
- *   - Excellent (80): income >= $300/mo AND tenure >= 6m AND has ID
- *   - Good (60):      income >= $200/mo AND tenure >= 6m AND has ID
- *   - Fair (45):      income >= $120/mo AND tenure >= 6m AND has ID
- *   - Fair (40):      income >= $200/mo AND tenure >= 4m AND has ID
- *   - Poor (25):      everything else
+ * Prohibiciones duras (la venta no procede, score 0):
+ *   - Sin cédula física
+ *   - Menos de 3 meses en la empresa
  *
- * Modifiers:
- *   + Down payment bonus flat +15 si hay alguna inicial (>0%) — no hay penalización por no tenerla
- *   + Tenure bonus for >1 year (up to +5)
- *   - Payment-to-income ratio penalty (up to -15)
- *   - History penalty for mora (-10) / bonus for active (+5)
+ * Score base = Σ (factor_i × peso_i) / Σ (peso_i) × 100
+ * Se normaliza por la suma real de los pesos, así que no hace falta que sumen
+ * exactamente 100 — si el admin los baja todos a la mitad, el score no se hunde.
+ *
+ * Extra: bono en puntos si el cliente da alguna inicial (>0%). No es un peso;
+ * no dar inicial no resta, porque en este negocio es lo habitual.
  */
-export function assessRisk(client: Partial<Client>, _settings: BusinessSettings): RiskAssessment {
+export function assessRisk(client: Partial<Client>, settings: BusinessSettings): RiskAssessment {
   const reasons: string[] = [];
   let prohibition: RiskProhibition = null;
 
@@ -103,45 +144,8 @@ export function assessRisk(client: Partial<Client>, _settings: BusinessSettings)
     };
   }
 
-  // 1. Base score from the three key factors
-  let score: number;
-  const sixMonths = tenureAtLeast6m(tenure);
-
-  if (income >= 300 && sixMonths && hasId) {
-    score = 80;
-    reasons.push('Excelente lead: ingreso >= $300/mo, más de 6 meses trabajando y cédula física');
-  } else if (income >= 200 && sixMonths && hasId) {
-    score = 60;
-    reasons.push('Cliente apto a nivel medio: ingreso >= $200/mo, más de 6 meses y cédula física');
-  } else if (income >= 120 && sixMonths && hasId) {
-    score = 45;
-    reasons.push('Ingreso y estabilidad aceptables pero limitados');
-  } else if (income >= 200 && (tenure === '4-6m') && hasId) {
-    score = 40;
-    reasons.push('Buen ingreso pero antigüedad laboral insuficiente (menos de 6 meses)');
-  } else {
-    score = 25;
-    if (income < 120) reasons.push('Ingreso mensual bajo');
-    if (!sixMonths) reasons.push('Antigüedad laboral menor a 6 meses');
-  }
-
-  // 2. Down payment modifier — en este negocio casi nunca hay inicial, así que no tenerla
-  // no resta puntos. Solo se premia cuando sí hay alguna (>0%).
+  // 1. Carga de la cuota frente al ingreso mensual.
   const downPct = client.downPaymentPct ?? 0;
-  if (downPct > 0) {
-    score += 15;
-    reasons.push('Tiene inicial — reduce el riesgo');
-  }
-
-  // 3. Tenure bonus for >1 year
-  if (tenure === '1-2y') {
-    score += 3;
-  } else if (tenure === 'gt-2y') {
-    score += 5;
-    reasons.push('Estabilidad laboral excelente (más de 2 años)');
-  }
-
-  // 4. Payment-to-income ratio penalty
   const cost = client.productCost ?? 0;
   const financed = cost * (1 - downPct / 100);
   const term = client.termMonths ?? 12;
@@ -149,29 +153,59 @@ export function assessRisk(client: Partial<Client>, _settings: BusinessSettings)
   const r = (client.interestRate ?? 18) / 100 / periodsPerYear;
   const totalPeriods = Math.max(1, Math.round((term / 12) * periodsPerYear));
   const payment = r === 0 ? financed / totalPeriods : (financed * r) / (1 - Math.pow(1 + r, -totalPeriods));
-  const paymentsPerMonth = periodsPerYear / 12;
-  const monthlyPayment = payment * paymentsPerMonth;
+  const monthlyPayment = payment * (periodsPerYear / 12);
+  // Sin ingreso declarado no se puede juzgar la carga — se asume la peor.
+  const ratio = income > 0 ? monthlyPayment / income : 1;
+
+  // 2. Score base ponderado. Los pesos vienen de Configuración.
+  const w = {
+    income:  Math.max(0, settings.scoring_weight_income),
+    tenure:  Math.max(0, settings.scoring_weight_tenure),
+    term:    Math.max(0, settings.scoring_weight_term),
+    history: Math.max(0, settings.scoring_weight_history),
+    id:      Math.max(0, settings.scoring_weight_id),
+  };
+  const totalWeight = w.income + w.tenure + w.term + w.history + w.id;
+
+  const f = {
+    income:  incomeFactor(income),
+    tenure:  tenureFactor(tenure),
+    term:    burdenFactor(ratio),
+    history: historyFactor(client.status),
+    id:      hasId ? 1 : 0,
+  };
+
+  // Si el admin puso todos los pesos en 0, no hay modelo — se cae a un valor
+  // neutro en vez de dividir entre cero.
+  let score = totalWeight === 0
+    ? 50
+    : ((f.income * w.income + f.tenure * w.tenure + f.term * w.term +
+        f.history * w.history + f.id * w.id) / totalWeight) * 100;
+
+  // 3. Razones legibles — se explican los factores que más pesan en el resultado.
+  if (income >= 300) reasons.push(`Ingreso sólido ($${income}/mes)`);
+  else if (income >= 200) reasons.push(`Ingreso moderado ($${income}/mes)`);
+  else if (income > 0) reasons.push(`Ingreso mensual bajo ($${income}/mes)`);
+  else reasons.push('Sin ingreso declarado');
+
+  if (tenure === 'gt-2y') reasons.push('Estabilidad laboral excelente (más de 2 años)');
+  else if (tenure === '1-2y') reasons.push('Buena estabilidad laboral (1 a 2 años)');
+  else if (tenure === '6m-1y') reasons.push('Antigüedad laboral aceptable (6 meses a 1 año)');
+  else reasons.push('Antigüedad laboral corta (menos de 6 meses)');
 
   if (income > 0) {
-    const ratio = monthlyPayment / income;
-    if (ratio >= 0.4) {
-      score -= 15;
-      reasons.push(`Cuota representa ${(ratio * 100).toFixed(0)}% del ingreso — riesgo alto de impago`);
-    } else if (ratio >= 0.3) {
-      score -= 8;
-      reasons.push(`Cuota representa ${(ratio * 100).toFixed(0)}% del ingreso`);
-    } else if (ratio < 0.1 && income > 0) {
-      reasons.push('Cuota fácilmente asumible frente al ingreso');
-    }
+    if (ratio >= 0.4) reasons.push(`Cuota representa ${(ratio * 100).toFixed(0)}% del ingreso — riesgo alto de impago`);
+    else if (ratio >= 0.3) reasons.push(`Cuota representa ${(ratio * 100).toFixed(0)}% del ingreso`);
+    else if (ratio < 0.1) reasons.push('Cuota fácilmente asumible frente al ingreso');
   }
 
-  // 5. Payment history
-  if (client.status === 'en_mora') {
-    score -= 10;
-    reasons.push('Cliente con historial de mora');
-  } else if (client.status === 'activo') {
-    score += 5;
-    reasons.push('Cliente con buen historial de pago');
+  if (client.status === 'en_mora') reasons.push('Cliente con historial de mora');
+  else if (client.status === 'activo') reasons.push('Cliente con buen historial de pago');
+
+  // 4. Bono por inicial — nunca penaliza su ausencia.
+  if (downPct > 0) {
+    score += settings.scoring_weight_downpayment;
+    reasons.push(`Tiene inicial (${downPct}%) — reduce el riesgo`);
   }
 
   score = Math.round(Math.max(0, Math.min(100, score)));

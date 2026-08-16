@@ -19,6 +19,51 @@ fallos no se ven en pantalla pero sí ahí.
 
 ---
 
+## 0. Lo de la última sesión — prueba esto primero
+
+Todo esto está verificado solo por compilación, nunca ejecutado. Es lo más
+probable que falle, así que va de primero.
+
+**Scoring**
+
+- [ ] Crea un cliente con **ingreso $300, antigüedad "6 meses a 1 año", cédula sí,
+      sin inicial** → debe dar **~84 puntos, "Riesgo Bajo", "aprobar"**
+- [ ] Ponle una inicial (ej. 20%) → el puntaje sube
+- [ ] Baja el ingreso a $150 → el puntaje baja
+- [ ] Marca "No dispone de cédula física" → debe dar **0 y venta prohibida**
+- [ ] **Guarda el cliente, ábrelo y edítale el ingreso** → el puntaje debe
+      cambiar (antes se quedaba congelado)
+
+**Configuración → Pesos del motor de scoring**
+
+- [ ] Ahora aparecen **cinco** pesos (ingreso, antigüedad, carga de la cuota,
+      historial, cédula) y abajo, aparte, **"Bono por inicial (puntos)"**
+- [ ] El aviso de suma ya **no** marca error permanente
+- [ ] Cambia "Peso ingreso" a un número muy alto, guarda, y crea un cliente de
+      prueba → el puntaje debe salir distinto que antes
+
+> Si mover los pesos no cambia nada, avísame: es exactamente el bug que
+> acabamos de arreglar y significaría que no quedó bien.
+
+**Formulario de cliente**
+
+- [ ] "Agente asignado" es un **desplegable** con "Administrador" + tu equipo
+- [ ] "Fecha del primer cobro" abre un **calendario morado dentro de la página**,
+      no el calendario gris del navegador
+- [ ] Ese mismo calendario aparece en Facturación (vencimiento) y en pago parcial
+
+**Visual**
+
+- [ ] La barra lateral tiene **estrellas de fondo** que se **apartan** al pasar el mouse
+- [ ] Los clics del menú siguen funcionando normal (las estrellas no deben estorbar)
+
+**Dashboard**
+
+- [ ] El mapa de calor de Caracas muestra **tus clientes reales**, no cifras fijas
+- [ ] Si borras/no tienes clientes, avisa que está vacío en vez de inventar números
+
+---
+
 ## 1. Dashboard
 
 - [ ] Las tarjetas KPI muestran cifras, no ceros ni "NaN"
@@ -35,6 +80,10 @@ fallos no se ven en pantalla pero sí ahí.
 ## 2. CRM
 
 - [ ] La lista de clientes carga
+- [ ] **¿Aparecen María González, José Rodríguez, Carolina Pérez, Luis Hernández,
+      Andreína Silva o Pedro Márquez?** Son clientes de ejemplo que se sembraron
+      solos al crear la cuenta. Avísame y te preparo cómo borrarlos — ahora que el
+      Dashboard cuenta clientes reales, estos te ensucian las cifras.
 - [ ] Cambiar entre vista de tarjetas y de tabla funciona
 - [ ] Buscar y filtrar por estado funciona
 - [ ] Abrir un cliente muestra su ficha completa

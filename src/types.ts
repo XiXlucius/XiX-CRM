@@ -23,11 +23,16 @@ export type Municipality =
   | 'sucre'
   | 'hatillo';
 
+/**
+ * Referencia geográfica de los municipios — solo nombre y coordenadas.
+ *
+ * Antes traía además `applications` y `approved` con cifras inventadas, y el
+ * mapa de calor del Dashboard las pintaba como si fueran reales. Se eliminaron:
+ * esos totales ahora se cuentan de los clientes de verdad (ver CaracasHeatmap).
+ */
 export interface CaracasMunicipality {
   id: Municipality;
   name: string;
-  applications: number;
-  approved: number;
   lat: number;
   lng: number;
 }
