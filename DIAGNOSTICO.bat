@@ -25,8 +25,11 @@ npm -v   >> "%OUT%" 2>&1
 >> "%OUT%" echo.
 
 >> "%OUT%" echo ===== RAMA DE GIT =====
-git rev-parse --abbrev-ref HEAD >> "%OUT%" 2>&1
-git log --oneline -5 >> "%OUT%" 2>&1
+REM --no-pager es obligatorio: sin el, `git log` abre un paginador que se queda
+REM esperando una tecla y deja el script colgado para siempre.
+git --no-pager rev-parse --abbrev-ref HEAD >> "%OUT%" 2>&1
+git --no-pager log --oneline -5 >> "%OUT%" 2>&1
+git --no-pager status --short >> "%OUT%" 2>&1
 >> "%OUT%" echo.
 
 >> "%OUT%" echo ===== ARCHIVOS CLAVE =====

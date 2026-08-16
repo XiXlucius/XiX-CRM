@@ -26,10 +26,12 @@ import {
   DollarSign,
   AlertCircle,
   Navigation,
+  Printer,
 } from 'lucide-react';
 import { useStore } from '../store';
 import type { Client, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure } from '../types';
 import { CARACAS_MUNICIPALITIES } from '../data';
+import { printInvoice, printStatement } from '../lib/export';
 import {
   Card,
   SectionHeader,
@@ -742,7 +744,7 @@ function ClientDetailModal({
   partialPayments: PartialPayment[];
   renegotiations: Renegotiation[];
   lateFees: { id: string; amount: number; weekNumber: number; appliedAt: string }[];
-  invoices: { id: string; amount: number; dueDate: string; status: string; installmentNumber: number; totalInstallments: number; isDownPayment: boolean }[];
+  invoices: { id: string; amount: number; dueDate: string; paidDate: string | null; status: string; installmentNumber: number; totalInstallments: number; isDownPayment: boolean }[];
   templates: MessageTemplate[];
   onUploadDoc: (clientId: string, file: File, type: string) => Promise<void>;
   onDeleteDoc: (id: string) => Promise<void>;
@@ -992,10 +994,15 @@ function ClientDetailModal({
 
         {tab === 'payments' && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-accent-500/20 bg-accent-500/5 p-3">
+            <div className="rounded-xl border border-accent-500/20 bg-accent-500/5 p-3 flex items-center justify-between gap-3 flex-wrap">
               <p className="text-sm text-slate-300">
                 <DollarSign size={14} className="inline text-accent-300" /> Total pagado en parcialidades: <span className="num text-metal-100">{fmtMoney(totalPartial)}</span>
               </p>
+              {invoices.length > 0 && (
+                <button onClick={() => printStatement(client, invoices)} className="btn-ghost text-xs">
+                  <Printer size={12} /> Estado de cuenta
+                </button>
+              )}
             </div>
             {invoices.length === 0 ? (
               <EmptyState icon={<DollarSign size={20} />} title="Sin facturas" body="Genera el cronograma de cuotas primero." />
@@ -1007,14 +1014,23 @@ function ClientDetailModal({
                   const remaining = inv.amount - paid;
                   return (
                     <div key={inv.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <div>
                           <p className="text-sm text-metal-100">{inv.isDownPayment ? 'Inicial' : `Cuota ${inv.installmentNumber}/${inv.totalInstallments}`}</p>
                           <p className="text-[11px] text-slate-500">Vence {fmtDateShort(inv.dueDate)}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="num text-sm text-metal-100">{fmtMoney(inv.amount)}</p>
-                          {paid > 0 && <p className="text-[11px] text-success-500">Pagado: {fmtMoney(paid)}</p>}
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <p className="num text-sm text-metal-100">{fmtMoney(inv.amount)}</p>
+                            {paid > 0 && <p className="text-[11px] text-success-500">Pagado: {fmtMoney(paid)}</p>}
+                          </div>
+                          <button
+                            onClick={() => printInvoice({ ...inv, clientName: client.fullName }, client)}
+                            className="btn-ghost px-2 py-1.5 text-xs shrink-0"
+                            title="Imprimir factura"
+                          >
+                            <Printer size={13} />
+                          </button>
                         </div>
                       </div>
                       {paid > 0 && (

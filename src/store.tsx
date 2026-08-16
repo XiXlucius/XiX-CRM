@@ -1048,8 +1048,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const uploadDocument: StoreValue['uploadDocument'] = async (clientId, file, type) => {
     const { data: { user: u } } = await supabase.auth.getUser();
     if (!u) throw new Error('No session');
-    const ext = file.name.split('.').pop() ?? '';
-    const path = `${u.id}/${clientId}/${Date.now()}-${file.name}`;
+    if (!orgId) throw new Error('Organización no resuelta todavía. Recarga la página.');
+
+    // La ruta DEBE empezar por el org_id. La migración multiempresa cambió las
+    // políticas de storage de `<user_id>/...` a `<org_id>/...`, pero este código
+    // seguía usando el user_id — cada subida rebotaba con "no tienes permiso".
+    // Ver 004_multi_tenant.sql, sección STORAGE.
+    const path = `${orgId}/${clientId}/${Date.now()}-${file.name}`;
     const { error: upErr } = await supabase.storage.from('client-documents').upload(path, file);
     if (upErr) throw upErr;
     const { data, error } = await supabase.from('client_documents').insert({
@@ -1199,18 +1204,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ---- WhatsApp send via edge function ----
+  // ---- WhatsApp send ----
+  // Intenta primero la edge function (permite enviar por la API oficial de Meta si algún
+  // día se configuran las credenciales, y deja rastro en audit_log). Si la función no está
+  // desplegada en este proyecto de Supabase (404) o falla por cualquier otra razón, cae
+  // automáticamente a abrir el chat de WhatsApp directo (wa.me) — así el botón funciona
+  // hoy mismo sin depender de un despliegue adicional.
   const sendWhatsApp: StoreValue['sendWhatsApp'] = async (phone, message) => {
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ phone, message }),
-    });
-    if (!res.ok) throw new Error(`WhatsApp send failed (${res.status})`);
+    const normalized = phone.replace(/[^0-9]/g, '');
+    const waLink = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ phone, message }),
+      });
+      if (!res.ok) throw new Error(`WhatsApp send failed (${res.status})`);
+      const data = await res.json().catch(() => null);
+      if (data?.link) {
+        window.open(data.link, '_blank', 'noopener');
+      }
+      return;
+    } catch {
+      // Edge function no disponible — fallback directo.
+      window.open(waLink, '_blank', 'noopener');
+    }
   };
 
   const value: StoreValue = useMemo(() => ({

@@ -5,7 +5,7 @@ import type { User } from '@supabase/supabase-js';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signup: (email: string, password: string, nombreCompleto: string, rol: string) => Promise<void>;
+  signup: (email: string, password: string, nombreCompleto: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -44,11 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function signup(email: string, password: string, nombreCompleto: string, rol: string) {
+  // El rol NO viaja aquí. Lo asigna un administrador desde Equipo, y vive en la
+  // tabla `memberships` del servidor — no en los metadatos de Auth, que el
+  // propio usuario podría manipular.
+  async function signup(email: string, password: string, nombreCompleto: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nombreCompleto, rol } },
+      options: { data: { nombreCompleto } },
     });
     if (error) throw error;
     if (data.user) {

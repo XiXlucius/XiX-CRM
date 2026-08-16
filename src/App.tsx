@@ -125,7 +125,7 @@ function LoadErrorScreen({ message, onRetry }: { message: string; onRetry: () =>
 
 function AppGate() {
   const { loadError, retryLoad } = useStore();
-  const { role, loading: orgLoading } = useOrg();
+  const { role, loading: orgLoading, needsOnboarding } = useOrg();
 
   // Esperamos a saber el rol real antes de decidir. Sin esto, un admin vería
   // la pantalla de "pendiente de aprobación" durante un parpadeo en cada carga.
@@ -139,7 +139,11 @@ function AppGate() {
 
   // Rol `nuevo` = sin ningún permiso. No tiene sentido enseñarle el CRM: todas
   // sus consultas rebotarían contra RLS.
-  if (role === 'nuevo') return <PendingApprovalScreen />;
+  //
+  // `needsOnboarding` = ni siquiera hay membresía. Para el usuario es la misma
+  // situación (su cuenta existe pero todavía no tiene acceso), así que ve la
+  // misma pantalla en vez de un error técnico que no le dice nada.
+  if (role === 'nuevo' || needsOnboarding) return <PendingApprovalScreen />;
 
   if (loadError) return <LoadErrorScreen message={loadError} onRetry={retryLoad} />;
   return <AppShell />;

@@ -28,6 +28,23 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const load = async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
+
+    // Garantiza que la membresía exista ANTES de leerla.
+    //
+    // Antes esto no estaba y había una carrera en el primer registro:
+    // OrgProvider consultaba `memberships` y no encontraba nada, porque quien
+    // creaba la fila era `store.tsx` un instante después. Como OrgContext solo
+    // se recarga cuando cambia `user.id`, el rol se quedaba en `null` hasta que
+    // el usuario refrescara la página — y con rol nulo no se mostraba la
+    // pantalla de espera.
+    //
+    // `join_default_org()` es idempotente: si ya hay membresía, la devuelve sin
+    // tocar nada. Si la función no existe todavía (migración sin aplicar), se
+    // registra el error y se sigue: la consulta de abajo dirá que no hay
+    // membresía y la app mostrará el aviso correspondiente.
+    const { error: joinErr } = await supabase.rpc('join_default_org');
+    if (joinErr) console.error('[OrgContext] join_default_org:', joinErr.message);
+
     const { data: membership } = await supabase
       .from('memberships')
       .select('org_id, role')
@@ -37,8 +54,6 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (!membership) {
-      // No debería pasar tras el primer login (store.tsx crea la org al cargar datos), pero
-      // si ocurre, deja la puerta abierta a crear una desde la UI en vez de romper la app.
       setOrgId(null);
       setRole(null);
       setPermissions([]);

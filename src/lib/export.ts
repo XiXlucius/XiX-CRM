@@ -155,7 +155,12 @@ export function productsToCSV(products: Product[]): string {
 
 // ---------- Printable invoice / statement (HTML -> print) ----------
 
-export function printInvoice(invoice: Invoice, client: Client | undefined) {
+type PrintableInvoice = Omit<
+  Pick<Invoice, 'id' | 'clientName' | 'amount' | 'dueDate' | 'paidDate' | 'status' | 'isDownPayment' | 'installmentNumber' | 'totalInstallments'>,
+  'status'
+> & { status: string };
+
+export function printInvoice(invoice: PrintableInvoice, client: Client | undefined) {
   const w = window.open('', '_blank', 'width=800,height=600');
   if (!w) return;
   const finalPrice = client
@@ -198,10 +203,17 @@ export function printInvoice(invoice: Invoice, client: Client | undefined) {
   w.document.close();
 }
 
-export function printStatement(client: Client, invoices: Invoice[]) {
+type StatementInvoice = Omit<
+  Pick<Invoice, 'id' | 'amount' | 'dueDate' | 'status' | 'isDownPayment' | 'installmentNumber'>,
+  'status'
+> & { status: string; clientId?: string };
+
+// `invoices` puede venir ya filtrado a un solo cliente (p. ej. desde la ficha del
+// cliente) — si trae `clientId`, se filtra por seguridad; si no, se usa tal cual.
+export function printStatement(client: Client, invoices: StatementInvoice[]) {
   const w = window.open('', '_blank', 'width=800,height=600');
   if (!w) return;
-  const clientInvoices = invoices.filter((i) => i.clientId === client.id);
+  const clientInvoices = invoices.filter((i) => i.clientId === undefined || i.clientId === client.id);
   const total = clientInvoices.reduce((a, i) => a + i.amount, 0);
   const paid = clientInvoices.filter((i) => i.status === 'pagada').reduce((a, i) => a + i.amount, 0);
   const pending = total - paid;

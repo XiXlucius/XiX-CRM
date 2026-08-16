@@ -12,7 +12,10 @@ import { validatePassword } from '../lib/validation';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
-const ROLES = ['Agente de ventas', 'Supervisor', 'Administrador', 'Cobrador'];
+// El rol NO se elige al registrarse: lo asigna un administrador desde la
+// pestaña Equipo. Antes había aquí un desplegable que ademas era decorativo —
+// su valor se guardaba como metadato de Supabase Auth y no tocaba `memberships`,
+// que es donde vive el rol de verdad.
 
 export function AuthScreen() {
   const { login, signup, resetPassword } = useAuth();
@@ -20,7 +23,6 @@ export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombreCompleto, setNombreCompleto] = useState('');
-  const [rol, setRol] = useState(ROLES[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function AuthScreen() {
       if (mode === 'login') {
         await login(email, password);
       } else if (mode === 'signup') {
-        await signup(email, password, nombreCompleto, rol);
+        await signup(email, password, nombreCompleto);
       } else {
         await resetPassword(email);
         setInfo('Correo de recuperación enviado. Revisa tu bandeja de entrada.');
@@ -147,12 +149,10 @@ export function AuthScreen() {
               </div>
             )}
             {mode === 'signup' && (
-              <div>
-                <label className="label">Rol</label>
-                <select className="input" value={rol} onChange={e => setRol(e.target.value)} disabled={loading}>
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
+              <p className="text-xs text-metal-500 leading-relaxed">
+                Tu cuenta quedará pendiente de aprobación. Un administrador te
+                asignará un rol antes de que puedas entrar.
+              </p>
             )}
             {mode === 'login' && (
               <div className="flex justify-end">
