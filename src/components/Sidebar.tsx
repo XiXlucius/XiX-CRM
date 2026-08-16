@@ -5,8 +5,9 @@ import {
   ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useStore, useCurrentRole } from '../store';
+import { useCurrentRole } from '../store';
 import { NAV_ITEMS } from '../data';
+import { ParticleField } from './ParticleField';
 import type { Permission } from '../types';
 
 export type NavTab = Permission;
@@ -77,8 +78,12 @@ export default function Sidebar({ active, onNavigate, open, onClose }: Props) {
           collapsed ? 'lg:w-[60px]' : 'lg:w-[220px]'
         }`}
       >
+      {/* Campo de estrellas de fondo — el cursor las repele (variante `sidebar`).
+          pointer-events:none, así que no estorba los clics del menú. */}
+      <ParticleField variant="sidebar" />
+
       {/* Logo */}
-      <div className={`flex items-center gap-3 px-4 py-5 ${collapsed ? 'justify-center px-0' : ''}`}>
+      <div className={`relative z-10 flex items-center gap-3 px-4 py-5 ${collapsed ? 'justify-center px-0' : ''}`}>
         {/* § 6.6 — logo de constelación con halo pulsante */}
         <div
           className="relative h-8 w-8 shrink-0 grid place-items-center rounded-xl"
@@ -108,10 +113,10 @@ export default function Sidebar({ active, onNavigate, open, onClose }: Props) {
         )}
       </div>
 
-      <div className="divider mx-3 mb-3" />
+      <div className="relative z-10 divider mx-3 mb-3" />
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+      <nav className="relative z-10 flex-1 px-2 space-y-0.5 overflow-y-auto">
         {visibleItems.map(({ id, label, icon }) => {
           const Icon = ICONS[icon] ?? LayoutDashboard;
           return (
@@ -130,7 +135,7 @@ export default function Sidebar({ active, onNavigate, open, onClose }: Props) {
       </nav>
 
       {/* User */}
-      <div className="p-2">
+      <div className="relative z-10 p-2">
         <div className="divider mb-2" />
         {!collapsed ? (
           <div className="flex items-center gap-2.5 px-2 py-2">

@@ -29,7 +29,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { useStore } from '../store';
-import type { Client, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure } from '../types';
+import type { Client, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure, TeamMember } from '../types';
 import { CARACAS_MUNICIPALITIES } from '../data';
 import { printInvoice, printStatement } from '../lib/export';
 import {
@@ -42,6 +42,7 @@ import {
   fmtDate,
   fmtDateShort,
   NumberInput,
+  DatePicker,
 } from './ui';
 import { AmortizationCalculator } from './AmortizationCalculator';
 import { ScoreRing } from './ScoreRing';
@@ -76,7 +77,7 @@ const STATUSES: ClientStatus[] = [
 ];
 
 export function CrmTab({ initialClientId }: { initialClientId?: string | null }) {
-  const { clients, invoices, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
+  const { clients, invoices, team, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
   const toast = useToast();
   const [view, setView] = useState<'grid' | 'list' | 'map'>('grid');
   const [query, setQuery] = useState('');
@@ -261,6 +262,7 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
         open={formOpen}
         onClose={() => setFormOpen(false)}
         settings={settings}
+        team={team}
         onSave={async (data) => {
           try {
             await addClient(data);
@@ -520,18 +522,19 @@ function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client)
 
 // ---------- Client form ----------
 
-function ClientFormModal({ open, onClose, onSave, settings }: {
+function ClientFormModal({ open, onClose, onSave, settings, team }: {
   open: boolean;
   onClose: () => void;
   onSave: (data: Omit<Client, 'id' | 'createdAt' | 'bitacora'>) => void;
   settings: BusinessSettings;
+  team: TeamMember[];
 }) {
   const [form, setForm] = useState({
     fullName: '', cedula: '', phone: '', email: '',
     municipality: 'chacao' as Municipality, address: '', product: '',
     productCost: 1000, downPaymentPct: 20, interestRate: 18,
     frequency: 'quincenal' as PaymentFrequency, termMonths: 12,
-    status: 'prospecto' as ClientStatus, assignedAgent: 'Vendedor Particular',
+    status: 'prospecto' as ClientStatus, assignedAgent: 'Administrador',
     monthlyIncome: 1000,
     employmentTenure: '6m-1y' as EmploymentTenure,
     hasPhysicalId: true,
@@ -560,7 +563,7 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
       latitude: lat,
       longitude: lng,
     } as Omit<Client, 'id' | 'createdAt' | 'bitacora'>);
-    setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'prospecto', assignedAgent: 'Vendedor Particular', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
+    setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'prospecto', assignedAgent: 'Administrador', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
     setEqualInstallments(false);
     setNumInstallments(12);
     setTermMonths(12);
@@ -647,7 +650,15 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
             <div><label className="label">Tasa interés anual (%)</label><NumberInput value={form.interestRate} onChange={(v) => set('interestRate', v)} /></div>
             <div><label className="label">Frecuencia</label><select className="input" value={form.frequency} onChange={(e) => set('frequency', e.target.value as PaymentFrequency)}><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div>
             <div><label className="label">Ingreso mensual ($)</label><NumberInput value={form.monthlyIncome} onChange={(v) => set('monthlyIncome', v)} /></div>
-            <div><label className="label">Agente asignado</label><input className="input" value={form.assignedAgent} onChange={(e) => set('assignedAgent', e.target.value)} /></div>
+            <div>
+              <label className="label">Agente asignado</label>
+              <select className="input" value={form.assignedAgent} onChange={(e) => set('assignedAgent', e.target.value)}>
+                <option value="Administrador">Administrador</option>
+                {team.filter((m) => m.active).map((m) => (
+                  <option key={m.id} value={m.name}>{m.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Term input: months + weeks for weekly, months otherwise */}
@@ -665,15 +676,12 @@ function ClientFormModal({ open, onClose, onSave, settings }: {
             )}
           </div>
 
-          {/* First payment date picker */}
+          {/* First payment date picker — calendario propio (ver DatePicker en ui.tsx)
+              en vez del input nativo, para que se vea con los colores del CRM y no
+              con el calendario genérico del navegador. */}
           <div className="mt-3">
             <label className="label">Fecha del primer cobro</label>
-            <input
-              type="date"
-              className="input"
-              value={form.firstPaymentDate}
-              onChange={(e) => set('firstPaymentDate', e.target.value)}
-            />
+            <DatePicker value={form.firstPaymentDate} onChange={(iso) => set('firstPaymentDate', iso)} />
             <p className="mt-1 text-[11px] text-slate-500">
               {form.frequency === 'semanal'
                 ? 'Los cobros caerán en este mismo día de la semana, cada 7 días.'
@@ -1220,7 +1228,7 @@ function PartialPaymentModal({
               </div>
               <div>
                 <label className="label">Fecha de pago</label>
-                <input type="date" className="input" value={p.date} onChange={(e) => update(i, 'date', e.target.value)} />
+                <DatePicker value={p.date} onChange={(iso) => update(i, 'date', iso)} />
               </div>
             </div>
             <div>

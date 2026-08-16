@@ -18,10 +18,14 @@ import { useEffect, useRef } from 'react';
  *     mucho más tenue (count 34, dotAlpha 0.40) y detrás del contenido no se
  *     apreciaba.
  *
+ *  3. La variante `sidebar` es la excepción a la regla 1: ahí el cursor REPELE
+ *     (efecto imán), y el canvas se ajusta a su contenedor en vez de a toda la
+ *     ventana. Se usa en el espacio vacío de la barra lateral.
+ *
  * Todas las perillas están en las constantes de abajo.
  */
 
-type Variant = 'login' | 'app';
+type Variant = 'login' | 'app' | 'sidebar';
 
 type Props = {
   variant?: Variant;
@@ -35,14 +39,17 @@ type Props = {
 
 // El shell de la app usa el mismo campo que el login: misma densidad, mismo
 // brillo. Antes era mucho más tenue y ni se notaba detrás del contenido.
+// `sidebar` es un área mucho más angosta: más puntos por área y líneas cortas,
+// porque si no se ve vacío.
 const PRESETS: Record<Variant, Required<Omit<Props, 'variant'>>> = {
-  login: { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
-  app:   { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
+  login:   { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
+  app:     { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
+  sidebar: { count: 46, speed: 0.13, lineDist: 62,  lineAlpha: 0.20, dotAlpha: 0.80 },
 };
 
 const RGB = '181,171,252';
 
-// ─── Gravedad del cursor ─────────────────────────────────────────────────
+// ─── Gravedad del cursor (variantes login / app) ─────────────────────────
 /** Radio de influencia, en px. Fuera de aquí el cursor no afecta nada. */
 const GRAVITY_RADIUS = 230;
 /** Fuerza de atracción. Más alto = tirón más fuerte. */
@@ -54,9 +61,19 @@ const RELAX = 0.035;
 /** Tope de velocidad, para que nada salga disparado. */
 const MAX_SPEED = 3.2;
 
+// ─── Repulsión del cursor (variante sidebar) ─────────────────────────────
+// El efecto imán que se pidió: las estrellas se apartan del camino del mouse.
+// Radio más corto que la gravedad porque la barra es angosta — si no, el cursor
+// barrería la columna entera de un solo golpe.
+const REPEL_RADIUS = 110;
+/** Fuerza del empuje. Más alto = se apartan más bruscamente. */
+const REPEL = 0.55;
+
 export function ParticleField({ variant = 'app', ...overrides }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const preset = PRESETS[variant];
+  // `sidebar` se mide contra su contenedor, no contra la ventana, y repele.
+  const contained = variant === 'sidebar';
   const count     = overrides.count     ?? preset.count;
   const speed     = overrides.speed     ?? preset.speed;
   const lineDist  = overrides.lineDist  ?? preset.lineDist;
@@ -103,13 +120,21 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
 
     const size = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = window.innerWidth;
-      h = window.innerHeight;
+      if (contained) {
+        // Se mide contra el contenedor (la barra lateral), no contra la ventana.
+        const host = canvas.parentElement;
+        w = host?.clientWidth ?? 0;
+        h = host?.clientHeight ?? 0;
+      } else {
+        w = window.innerWidth;
+        h = window.innerHeight;
+      }
+      if (w === 0 || h === 0) return; // sin layout todavía; se reintenta al próximo resize
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx = canvas.getContext('2d');
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (!parts.length) seed(); else { seed(); }
+      seed();
     };
 
     const draw = () => {
@@ -120,15 +145,28 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
 
       for (const p of parts) {
         if (!reduced) {
-          // 1. Gravedad del cursor: atrae hacia el puntero, con caída cuadrática.
-          //    dx/dy apuntan HACIA el mouse (antes era al revés: repelía).
-          const dx = mouse.x - p.x;
-          const dy = mouse.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < GRAVITY_RADIUS && dist > DEAD_ZONE) {
-            const f = Math.pow(1 - dist / GRAVITY_RADIUS, 2) * GRAVITY;
-            p.vx += (dx / dist) * f;
-            p.vy += (dy / dist) * f;
+          // 1. Influencia del cursor.
+          if (contained) {
+            // Imán que REPELE: dx/dy apuntan desde el mouse HACIA la partícula,
+            // así que se apartan del camino del puntero.
+            const dx = p.x - mouse.x;
+            const dy = p.y - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < REPEL_RADIUS && dist > 0.01) {
+              const f = Math.pow(1 - dist / REPEL_RADIUS, 2) * REPEL;
+              p.vx += (dx / dist) * f;
+              p.vy += (dy / dist) * f;
+            }
+          } else {
+            // Gravedad: atrae hacia el puntero, con caída cuadrática.
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < GRAVITY_RADIUS && dist > DEAD_ZONE) {
+              const f = Math.pow(1 - dist / GRAVITY_RADIUS, 2) * GRAVITY;
+              p.vx += (dx / dist) * f;
+              p.vy += (dy / dist) * f;
+            }
           }
 
           // 2. Relajación: siempre tiende a recuperar su deriva original, así
@@ -201,6 +239,16 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
     size();
     raf = requestAnimationFrame(draw);
     window.addEventListener('resize', onResize);
+
+    // En modo contenido, la barra lateral cambia de ancho al colapsarse — eso es
+    // una transición CSS, no un resize de ventana, así que hace falta observar
+    // el contenedor directamente o el canvas se queda con el tamaño viejo.
+    let ro: ResizeObserver | null = null;
+    if (contained && canvas.parentElement && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(onResize);
+      ro.observe(canvas.parentElement);
+    }
+
     if (!reduced) {
       window.addEventListener('mousemove', onMove, { passive: true });
       document.addEventListener('mouseleave', onLeave);
@@ -210,19 +258,20 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(resizeTimer);
+      ro?.disconnect();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('blur', onLeave);
     };
-  }, [count, speed, lineDist, lineAlpha, dotAlpha]);
+  }, [count, speed, lineDist, lineAlpha, dotAlpha, contained]);
 
   return (
     <canvas
       ref={ref}
       aria-hidden="true"
       style={{
-        position: 'fixed',
+        position: contained ? 'absolute' : 'fixed',
         inset: 0,
         zIndex: 0,
         pointerEvents: 'none',

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store';
 import type { Invoice, InvoiceStatus, Permission } from '../types';
-import { Card, SectionHeader, StatusChip, Modal, EmptyState, fmtMoney, fmtDate, fmtDateShort } from './ui';
+import { Card, SectionHeader, StatusChip, Modal, EmptyState, fmtMoney, fmtDate, fmtDateShort, DatePicker } from './ui';
 import { CobrosCalendar } from './CobrosCalendar';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
@@ -296,7 +296,7 @@ function InvoiceFormModal({
           </div>
           <div>
             <label className="label">Fecha de vencimiento</label>
-            <input type="date" className="input" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
+            <DatePicker value={form.dueDate} onChange={(iso) => set('dueDate', iso)} />
           </div>
           <div>
             <label className="label">Tipo</label>

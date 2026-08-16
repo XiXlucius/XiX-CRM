@@ -1,7 +1,7 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 // ---------- Status helpers ----------
 
@@ -255,3 +255,183 @@ export const fmtDateShort = (iso: string) =>
     day: '2-digit',
     month: 'short',
   });
+
+// ---------- Date picker (calendario propio con el look del CRM) ----------
+//
+// El <input type="date"> nativo abre el calendario del sistema operativo o del
+// navegador — no hay CSS que le cambie los colores. Este componente reemplaza
+// esa ventana con un popover propio, en la misma línea visual que el resto del
+// CRM (glass-card, acento morado, glow en el día seleccionado), para que se
+// vea integrado en vez de "roto" en medio de la app.
+
+function toISO(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function buildMonthGrid(cursor: Date) {
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startWeekday = (firstDay.getDay() + 6) % 7; // Lunes = 0
+  const totalDays = lastDay.getDate();
+  const cells: { date: Date; isCurrentMonth: boolean }[] = [];
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    cells.push({ date: new Date(year, month, -i), isCurrentMonth: false });
+  }
+  for (let i = 1; i <= totalDays; i++) {
+    cells.push({ date: new Date(year, month, i), isCurrentMonth: true });
+  }
+  let nextDay = 1;
+  while (cells.length < 42) {
+    cells.push({ date: new Date(year, month, totalDays + nextDay), isCurrentMonth: false });
+    nextDay++;
+  }
+  return cells;
+}
+
+const WEEKDAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+export function DatePicker({
+  value,
+  onChange,
+  placeholder = 'Seleccionar fecha',
+}: {
+  value: string; // ISO 'YYYY-MM-DD' o ''
+  onChange: (iso: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(() => {
+    const d = value ? new Date(`${value}T00:00:00`) : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const openPicker = () => {
+    const d = value ? new Date(`${value}T00:00:00`) : new Date();
+    setCursor(new Date(d.getFullYear(), d.getMonth(), 1));
+    setOpen(true);
+  };
+
+  const today = new Date();
+  const todayISO = toISO(today);
+  const days = useMemo(() => buildMonthGrid(cursor), [cursor]);
+
+  const label = value
+    ? new Date(`${value}T00:00:00`).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
+    : placeholder;
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button
+        type="button"
+        onClick={() => (open ? setOpen(false) : openPicker())}
+        className={`input flex items-center justify-between gap-2 text-left ${!value ? 'text-slate-500' : ''}`}
+      >
+        <span className="capitalize truncate">{label}</span>
+        <CalendarDays size={15} className="text-accent-400 shrink-0" />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -6 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="card absolute z-[70] mt-1.5 w-[280px] p-3 shadow-glow-lg"
+          >
+            {/* Encabezado de mes */}
+            <div className="flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+                className="grid h-7 w-7 place-items-center rounded-lg border border-tint/10 text-slate-400 hover:border-accent-500/40 hover:text-metal-100 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs font-medium text-metal-100 capitalize">
+                {cursor.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+                className="grid h-7 w-7 place-items-center rounded-lg border border-tint/10 text-slate-400 hover:border-accent-500/40 hover:text-metal-100 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            {/* Días de la semana */}
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
+              {WEEKDAY_LETTERS.map((d, i) => (
+                <div key={i} className="text-center text-[10px] font-semibold uppercase text-slate-600 py-1">{d}</div>
+              ))}
+            </div>
+
+            {/* Grilla de días */}
+            <div className="grid grid-cols-7 gap-0.5">
+              {days.map(({ date, isCurrentMonth }, i) => {
+                const iso = toISO(date);
+                const isSelected = value === iso;
+                const isToday = todayISO === iso;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => { onChange(iso); setOpen(false); }}
+                    className={`h-8 rounded-lg text-xs transition-all ${
+                      !isCurrentMonth
+                        ? 'text-slate-700 hover:bg-tint/5'
+                        : isSelected
+                        ? 'bg-accent-500 text-white font-semibold shadow-glow'
+                        : isToday
+                        ? 'border border-accent-500/40 text-accent-300'
+                        : 'text-slate-300 hover:bg-accent-500/15 hover:text-accent-200'
+                    }`}
+                  >
+                    {date.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Atajos */}
+            <div className="mt-2 pt-2 border-t border-tint/5 flex items-center justify-between">
+              <button type="button" onClick={() => { onChange(todayISO); setOpen(false); }} className="btn-ghost text-2xs px-2 py-1">
+                Hoy
+              </button>
+              {value && (
+                <button
+                  type="button"
+                  onClick={() => { onChange(''); setOpen(false); }}
+                  className="text-2xs text-slate-500 hover:text-danger-400 transition-colors px-2 py-1"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

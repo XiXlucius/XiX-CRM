@@ -54,21 +54,23 @@ function tenureAtLeast6m(t: EmploymentTenure): boolean {
 }
 
 /**
- * Credit risk scoring engine — rule-based, aligned with business criteria.
+ * Credit risk scoring engine — rule-based, aligned con criterios del negocio.
+ * Ajustado el 2026-08 a pedido de Lucius: el negocio casi nunca recibe inicial,
+ * así que ya no se castiga no tenerla — solo se premia cuando sí la hay.
  *
  * Hard prohibitions (sale cannot proceed):
  *   - No physical cédula
  *   - Less than 3 months at company
  *
  * Base score from the three key factors:
- *   - Excellent (80): income > $400/mo AND tenure >= 6m AND has ID
- *   - Good (60):      income > $250/mo AND tenure >= 6m AND has ID
- *   - Fair (45):      income > $150/mo AND tenure >= 6m AND has ID
- *   - Fair (40):      income > $250/mo AND tenure >= 4m AND has ID
+ *   - Excellent (80): income >= $300/mo AND tenure >= 6m AND has ID
+ *   - Good (60):      income >= $200/mo AND tenure >= 6m AND has ID
+ *   - Fair (45):      income >= $120/mo AND tenure >= 6m AND has ID
+ *   - Fair (40):      income >= $200/mo AND tenure >= 4m AND has ID
  *   - Poor (25):      everything else
  *
  * Modifiers:
- *   + Down payment bonus (up to +8)
+ *   + Down payment bonus flat +15 si hay alguna inicial (>0%) — no hay penalización por no tenerla
  *   + Tenure bonus for >1 year (up to +5)
  *   - Payment-to-income ratio penalty (up to -15)
  *   - History penalty for mora (-10) / bonus for active (+5)
@@ -105,34 +107,30 @@ export function assessRisk(client: Partial<Client>, _settings: BusinessSettings)
   let score: number;
   const sixMonths = tenureAtLeast6m(tenure);
 
-  if (income > 400 && sixMonths && hasId) {
+  if (income >= 300 && sixMonths && hasId) {
     score = 80;
-    reasons.push('Excelente lead: ingreso > $400/mo, más de 6 meses trabajando y cédula física');
-  } else if (income > 250 && sixMonths && hasId) {
+    reasons.push('Excelente lead: ingreso >= $300/mo, más de 6 meses trabajando y cédula física');
+  } else if (income >= 200 && sixMonths && hasId) {
     score = 60;
-    reasons.push('Cliente apto a nivel medio: ingreso > $250/mo, más de 6 meses y cédula física');
-  } else if (income > 150 && sixMonths && hasId) {
+    reasons.push('Cliente apto a nivel medio: ingreso >= $200/mo, más de 6 meses y cédula física');
+  } else if (income >= 120 && sixMonths && hasId) {
     score = 45;
     reasons.push('Ingreso y estabilidad aceptables pero limitados');
-  } else if (income > 250 && (tenure === '4-6m') && hasId) {
+  } else if (income >= 200 && (tenure === '4-6m') && hasId) {
     score = 40;
     reasons.push('Buen ingreso pero antigüedad laboral insuficiente (menos de 6 meses)');
   } else {
     score = 25;
-    if (income <= 150) reasons.push('Ingreso mensual bajo');
+    if (income < 120) reasons.push('Ingreso mensual bajo');
     if (!sixMonths) reasons.push('Antigüedad laboral menor a 6 meses');
   }
 
-  // 2. Down payment modifier
+  // 2. Down payment modifier — en este negocio casi nunca hay inicial, así que no tenerla
+  // no resta puntos. Solo se premia cuando sí hay alguna (>0%).
   const downPct = client.downPaymentPct ?? 0;
-  if (downPct >= 30) {
-    score += 8;
-    reasons.push('Inicial muy sólida (30% o más)');
-  } else if (downPct >= 20) {
-    score += 4;
-  } else if (downPct < 10) {
-    score -= 8;
-    reasons.push('Inicial baja, aumenta el riesgo');
+  if (downPct > 0) {
+    score += 15;
+    reasons.push('Tiene inicial — reduce el riesgo');
   }
 
   // 3. Tenure bonus for >1 year
