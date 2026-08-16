@@ -22,8 +22,10 @@ import type { TeamMember, Role } from '../types';
 import { Card, SectionHeader, Modal, fmtMoney, fmtPct, fmtDate } from './ui';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
+import { OrgMembers } from './OrgMembers';
 
 const ROLE_LABELS: Record<Role, string> = {
+  nuevo: 'Usuario nuevo',
   admin: 'Admin',
   gerente: 'Gerente',
   supervisor: 'Supervisor',
@@ -73,6 +75,9 @@ export function EquipoTab() {
           </button>
         }
       />
+
+      {/* Usuarios del sistema — se pinta solo si eres admin (ver OrgMembers) */}
+      <OrgMembers />
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

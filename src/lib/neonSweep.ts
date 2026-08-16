@@ -1,36 +1,64 @@
 /**
- * Barrido láser neón — aleatorización de fase.
+ * Barrido láser neón en los títulos.
  * HANDOFF-COMPLETO-PARA-CLAUDE-CODE.md § 6.5
  *
- * IMPORTANTE (bug ya corregido en el prototipo, no repetirlo):
- * la duración y el delay de cada elemento se randomizan en JS, NUNCA con CSS
- * `:nth-of-type` — eso solo cuenta hermanos dentro del mismo padre y termina
- * sincronizando casi todo el árbol en el mismo ciclo.
+ * El barrido NO es un bucle CSS infinito. Un `animation: ... infinite` obliga a
+ * que el destello vuelva a cruzar inmediatamente después del anterior — se ve
+ * repetitivo y cansa. Aquí cada título se programa por separado:
  *
- * Un MutationObserver sobre document.body detecta nodos nuevos con .ntNeonBg
- * o .ntNeonAnim (incluidos los modales que se abren después del load) y les
- * asigna una sola vez:
- *   --nd  duración : 2.4 + random*3.6 segundos
- *   --nl  delay    : negativo, -(random * duración) — así cada elemento arranca
- *                    a mitad de su propio ciclo en vez de todos a la vez en 0s.
+ *     cruza (lento)  ->  descansa un rato al azar  ->  vuelve a cruzar
  *
- * Un WeakSet evita reasignar al mismo nodo.
+ * Duración del cruce y longitud del descanso se sortean por título Y en cada
+ * repetición, así que ningún título coincide con otro ni consigo mismo.
+ *
+ * Un MutationObserver engancha los títulos que aparecen después (modales, cambio
+ * de pestaña). Cuando un título sale del DOM, su ciclo se detiene solo.
  *
  * Puramente estético: no lee ni escribe datos, no toca estado de la app.
  */
 
+// ─── Perillas ────────────────────────────────────────────────────────────
+/** Cuánto tarda el destello en cruzar el título, en segundos. */
+const SWEEP_MIN = 3.4;
+const SWEEP_RANGE = 2.6;      // resultado: 3.4s – 6.0s
+
+/** Cuánto descansa el título entre un cruce y el siguiente, en segundos. */
+const GAP_MIN = 7;
+const GAP_RANGE = 16;         // resultado: 7s – 23s
+
+/** Espera inicial antes del primer cruce de cada título. */
+const FIRST_MIN = 0.5;
+const FIRST_RANGE = 9;
+// ─────────────────────────────────────────────────────────────────────────
+
 const seen = new WeakSet<Element>();
-// Los títulos entran también: el CSS les aplica el barrido bajo `.neon-titles`,
-// y aquí cada uno recibe su propia duración y fase para que no vayan en bloque.
 const SELECTOR = '.ntNeonBg, .ntNeonAnim, h1, h2, h3';
+
+const rand = (min: number, range: number) => min + Math.random() * range;
+
+function sweepOnce(el: HTMLElement) {
+  if (!el.isConnected) return; // salió del DOM: se acaba el ciclo
+
+  const dur = rand(SWEEP_MIN, SWEEP_RANGE);
+  el.style.setProperty('--nd', `${dur.toFixed(2)}s`);
+
+  // Reiniciar la animación: quitar la clase, forzar reflow, volver a ponerla.
+  el.classList.remove('nt-sweep');
+  void el.offsetWidth;
+  el.classList.add('nt-sweep');
+
+  const gap = rand(GAP_MIN, GAP_RANGE);
+  window.setTimeout(() => {
+    if (!el.isConnected) return;
+    el.classList.remove('nt-sweep');
+    sweepOnce(el);
+  }, (dur + gap) * 1000);
+}
 
 function assign(el: Element) {
   if (seen.has(el)) return;
   seen.add(el);
-  const dur = 2.4 + Math.random() * 3.6;
-  const delay = -(Math.random() * dur);
-  (el as HTMLElement).style.setProperty('--nd', `${dur.toFixed(2)}s`);
-  (el as HTMLElement).style.setProperty('--nl', `${delay.toFixed(2)}s`);
+  window.setTimeout(() => sweepOnce(el as HTMLElement), rand(FIRST_MIN, FIRST_RANGE) * 1000);
 }
 
 function scan(root: ParentNode) {
@@ -42,12 +70,10 @@ let observer: MutationObserver | null = null;
 
 export function startNeonSweep() {
   if (typeof document === 'undefined' || observer) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const boot = () => {
-    // Activa el barrido en los títulos. Se pone AQUI a propósito, ya con la
-    // página en pie: si algo revienta antes, los títulos nunca quedan
-    // transparentes y la app sigue legible.
+    // Se pone AQUI a propósito, con la página ya en pie: si algo revienta antes,
+    // los títulos nunca quedan transparentes y la app sigue legible.
     document.documentElement.classList.add('neon-titles');
 
     scan(document.body);

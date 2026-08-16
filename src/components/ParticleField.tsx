@@ -1,18 +1,24 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Constelación de fondo con física de repulsión al mouse.
+ * Constelación de fondo con gravedad del cursor.
  *
- * Reimplementación fiel del prototipo `XiX Tech CRM - Rediseño Nocturne.dc.html`,
- * siguiendo HANDOFF-COMPLETO-PARA-CLAUDE-CODE.md § 6.1. Los valores no son
- * inventados: son los del prototipo.
+ * Base tomada del prototipo `XiX Tech CRM - Rediseño Nocturne.dc.html`
+ * (HANDOFF-COMPLETO-PARA-CLAUDE-CODE.md § 6.1): densidad, velocidad de deriva,
+ * distancia de conexión, parpadeo y wrap-around en los bordes.
  *
- *   Login     → count 70, speed 0.16, lineDist 130, lineAlpha 0.22, dotAlpha 0.75
- *   App shell → count 34, speed 0.09, lineDist 110, lineAlpha 0.10, dotAlpha 0.40
+ * DIFERENCIAS DELIBERADAS con el prototipo:
  *
- * Repulsión: radio 90px, force = (90 - dist) / 90 * 0.9, empuje en dirección
- * contraria al cursor. Fuera de ese radio no hay fuerza — halo local, no gravedad.
- * Bordes con wrap-around (reaparecen del lado opuesto, nunca rebotan).
+ *  1. El cursor ATRAE en vez de repeler. El prototipo empujaba las partículas
+ *     lejos del puntero; aquí ejercen gravedad hacia él, con caída cuadrática y
+ *     una zona muerta para que no colapsen todas en el mismo punto. Al alejar el
+ *     cursor, cada partícula relaja de vuelta hacia su deriva original.
+ *
+ *  2. El shell de la app usa el MISMO preset que el login. El prototipo lo tenía
+ *     mucho más tenue (count 34, dotAlpha 0.40) y detrás del contenido no se
+ *     apreciaba.
+ *
+ * Todas las perillas están en las constantes de abajo.
  */
 
 type Variant = 'login' | 'app';
@@ -27,14 +33,26 @@ type Props = {
   dotAlpha?: number;
 };
 
+// El shell de la app usa el mismo campo que el login: misma densidad, mismo
+// brillo. Antes era mucho más tenue y ni se notaba detrás del contenido.
 const PRESETS: Record<Variant, Required<Omit<Props, 'variant'>>> = {
   login: { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
-  app:   { count: 34, speed: 0.09, lineDist: 110, lineAlpha: 0.10, dotAlpha: 0.40 },
+  app:   { count: 70, speed: 0.16, lineDist: 130, lineAlpha: 0.22, dotAlpha: 0.75 },
 };
 
 const RGB = '181,171,252';
-const REPEL_RADIUS = 90;
-const REPEL_STRENGTH = 0.9;
+
+// ─── Gravedad del cursor ─────────────────────────────────────────────────
+/** Radio de influencia, en px. Fuera de aquí el cursor no afecta nada. */
+const GRAVITY_RADIUS = 230;
+/** Fuerza de atracción. Más alto = tirón más fuerte. */
+const GRAVITY = 0.05;
+/** Zona muerta alrededor del cursor, para que no colapsen todas en el punto. */
+const DEAD_ZONE = 26;
+/** Con qué rapidez cada partícula recupera su deriva original (0-1 por frame). */
+const RELAX = 0.035;
+/** Tope de velocidad, para que nada salga disparado. */
+const MAX_SPEED = 3.2;
 
 export function ParticleField({ variant = 'app', ...overrides }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -57,19 +75,30 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
     // Coordenadas locales al canvas. Muy lejos = sin repulsión al inicio.
     const mouse = { x: -9999, y: -9999 };
 
-    type P = { x: number; y: number; vx: number; vy: number; r: number; tw: number; tws: number };
+    // bvx/bvy = deriva propia de la partícula. vx/vy = velocidad actual, que la
+    // gravedad del cursor altera y que luego relaja de vuelta hacia la deriva.
+    type P = {
+      x: number; y: number;
+      vx: number; vy: number;
+      bvx: number; bvy: number;
+      r: number; tw: number; tws: number;
+    };
     let parts: P[] = [];
 
     const seed = () => {
-      parts = Array.from({ length: count }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * speed,
-        vy: (Math.random() - 0.5) * speed,
-        r: 0.9 + Math.random() * 1.4,          // 0.9 – 2.3
-        tw: Math.random() * Math.PI * 2,
-        tws: 0.02 + Math.random() * 0.03,      // 0.02 – 0.05
-      }));
+      parts = Array.from({ length: count }, () => {
+        const bvx = (Math.random() - 0.5) * speed;
+        const bvy = (Math.random() - 0.5) * speed;
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: bvx, vy: bvy,
+          bvx, bvy,
+          r: 0.9 + Math.random() * 1.4,          // 0.9 – 2.3
+          tw: Math.random() * Math.PI * 2,
+          tws: 0.02 + Math.random() * 0.03,      // 0.02 – 0.05
+        };
+      });
     };
 
     const size = () => {
@@ -91,22 +120,35 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
 
       for (const p of parts) {
         if (!reduced) {
-          // 1. Repulsión al mouse.
-          const dx = p.x - mouse.x;
-          const dy = p.y - mouse.y;
+          // 1. Gravedad del cursor: atrae hacia el puntero, con caída cuadrática.
+          //    dx/dy apuntan HACIA el mouse (antes era al revés: repelía).
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < REPEL_RADIUS && dist > 0.01) {
-            const force = ((REPEL_RADIUS - dist) / REPEL_RADIUS) * REPEL_STRENGTH;
-            p.x += (dx / dist) * force;
-            p.y += (dy / dist) * force;
+          if (dist < GRAVITY_RADIUS && dist > DEAD_ZONE) {
+            const f = Math.pow(1 - dist / GRAVITY_RADIUS, 2) * GRAVITY;
+            p.vx += (dx / dist) * f;
+            p.vy += (dy / dist) * f;
           }
 
-          // 2. Velocidad propia + parpadeo.
+          // 2. Relajación: siempre tiende a recuperar su deriva original, así
+          //    que al alejar el cursor el campo vuelve solo a su estado normal.
+          p.vx += (p.bvx - p.vx) * RELAX;
+          p.vy += (p.bvy - p.vy) * RELAX;
+
+          // 3. Tope de velocidad.
+          const sp = Math.hypot(p.vx, p.vy);
+          if (sp > MAX_SPEED) {
+            p.vx = (p.vx / sp) * MAX_SPEED;
+            p.vy = (p.vy / sp) * MAX_SPEED;
+          }
+
+          // 4. Mover + parpadeo.
           p.x += p.vx;
           p.y += p.vy;
           p.tw += p.tws;
 
-          // 3. Wrap-around.
+          // 5. Wrap-around.
           if (p.x < -5) p.x = w + 5; else if (p.x > w + 5) p.x = -5;
           if (p.y < -5) p.y = h + 5; else if (p.y > h + 5) p.y = -5;
         }

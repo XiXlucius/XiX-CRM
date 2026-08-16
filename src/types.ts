@@ -2,7 +2,9 @@
 // XiX Tech — Domain Types
 // ============================================================
 
-export type Role = 'admin' | 'gerente' | 'supervisor' | 'vendedor';
+// `nuevo` = cuenta recién registrada, sin ningún permiso, esperando que un
+// administrador le asigne un rol real. Ver MIGRACION-USUARIO-NUEVO.sql
+export type Role = 'nuevo' | 'admin' | 'gerente' | 'supervisor' | 'vendedor';
 
 export interface RoleProfile {
   id: Role;

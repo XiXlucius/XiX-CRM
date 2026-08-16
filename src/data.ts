@@ -15,6 +15,15 @@ import type {
 
 export const ROLES: RoleProfile[] = [
   {
+    id: 'nuevo',
+    name: 'Nuevo',
+    label: 'Usuario nuevo',
+    description: 'Cuenta pendiente de aprobación. Sin acceso hasta que un administrador le asigne un rol.',
+    initials: 'UN',
+    color: 'from-accent-500 to-violet-500',
+    permissions: [],
+  },
+  {
     id: 'admin',
     name: 'Admin',
     label: 'Administrador',

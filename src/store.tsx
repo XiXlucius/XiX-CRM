@@ -26,6 +26,7 @@ import {
   SEED_PRODUCTS,
 } from './data';
 import { supabase } from './lib/supabase';
+import { useOrg } from './context/OrgContext';
 import { logAudit } from './lib/audit';
 import { assessRisk, DEFAULT_SETTINGS, type BusinessSettings } from './lib/scoring';
 import { friendlyError } from './lib/errors';
@@ -195,17 +196,27 @@ const mapLateFee = (r: Record<string, unknown>): LateFee => ({
 });
 
 
-// Resuelve (o crea, para altas nuevas post-migración) la organización del usuario.
-// Ver supabase/migrations/20260814130000_004_multi_tenant.sql — el backfill de esa migración
-// cubre usuarios preexistentes; esto cubre signups nuevos que aún no tienen membership.
-async function ensureOrgId(uid: string): Promise<string> {
-  const { data: existing } = await supabase.from('memberships').select('org_id').eq('user_id', uid).limit(1).maybeSingle();
-  if (existing?.org_id) return existing.org_id as string;
-  const { data: org, error: orgErr } = await supabase.from('organizations').insert({ name: 'Mi organización', owner_id: uid }).select('id').single();
-  if (orgErr) throw orgErr;
-  const { error: memErr } = await supabase.from('memberships').insert({ org_id: org!.id, user_id: uid, role: 'admin', active: true });
-  if (memErr) throw memErr;
-  return org!.id as string;
+/**
+ * Resuelve la organización del usuario.
+ *
+ * ANTES esto creaba una organización NUEVA por cada persona que se registrara y
+ * la ponía de admin de la suya — cada usuario terminaba con su propio CRM vacío
+ * y aislado.
+ *
+ * AHORA delega en `join_default_org()`, una función SECURITY DEFINER del
+ * servidor (ver MIGRACION-USUARIO-NUEVO.sql): mete al usuario en la
+ * organización existente con el rol `nuevo`, que no tiene ningún permiso. Solo
+ * crea una organización si no hay ninguna todavía, y en ese caso el primer
+ * usuario del sistema es el admin.
+ *
+ * La lógica vive en el servidor a propósito: si estuviera aquí, cualquiera
+ * podría saltársela desde la consola del navegador.
+ */
+async function ensureOrgId(_uid: string): Promise<string> {
+  const { data, error } = await supabase.rpc('join_default_org');
+  if (error) throw error;
+  if (!data) throw new Error('No se pudo resolver la organización del usuario');
+  return data as string;
 }
 
 const mapTeam = (r: Record<string, unknown>): TeamMember => ({
@@ -394,6 +405,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ---- Seed demo data for a new user ----
   const seedDemoData = useCallback(async (uid: string) => {
     const orgId = await ensureOrgId(uid);
+
+    // Solo el admin siembra los datos de ejemplo. Un usuario que acaba de
+    // registrarse entra con rol `nuevo` y sin permisos: si intentara sembrar,
+    // cada insert rebotaría contra RLS y le mostraríamos un error que no le
+    // corresponde. Además sembraría la organización de OTRA persona.
+    const { data: membership } = await supabase
+      .from('memberships')
+      .select('role')
+      .eq('user_id', uid)
+      .eq('active', true)
+      .limit(1)
+      .maybeSingle();
+    if (membership?.role !== 'admin') return;
+
     // Insert seed clients
     const clientRows = SEED_CLIENTS.map((c) => ({
       user_id: uid,
@@ -517,6 +542,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [seedDemoData, loadAll]);
 
   // ---- Actions ----
+  /** @deprecated El rol real vive en `memberships` y se lee con `useOrg()`.
+   *  Esto ya no lo consume ninguna pantalla — la interfaz usa `useCurrentRole()`,
+   *  que ahora pregunta al servidor. Se conserva solo para no romper el tipo del
+   *  contexto; puede borrarse junto con `role` en una limpieza posterior. */
   const setRole = (r: Role) => {
     localStorage.setItem('credinucleo_role', r);
     setState((s) => ({ ...s, role: r }));
@@ -1232,9 +1261,26 @@ export function useStore() {
   return ctx;
 }
 
+/**
+ * Rol efectivo de la interfaz.
+ *
+ * ANTES leía `useStore().role`, que salía de `localStorage` y era editable por
+ * cualquiera desde la consola del navegador. Eso contradecía al servidor: podías
+ * ponerte "admin" en la UI y seguir sin permisos reales (manda RLS), o al revés
+ * — arrancabas como "vendedor" por defecto y el menú te escondía secciones que
+ * sí tenías permitidas.
+ *
+ * AHORA viene de `OrgContext`, que lo lee de la tabla `memberships`. Una sola
+ * fuente de verdad: el servidor.
+ *
+ * Mientras carga, cae en el rol de menor privilegio a propósito — es preferible
+ * que aparezca una sección de más un instante después, a mostrar algo que no
+ * corresponde.
+ */
 export function useCurrentRole() {
-  const { role } = useStore();
-  return ROLES.find((r) => r.id === role)!;
+  const { role } = useOrg();
+  const id: Role = role ?? 'vendedor';
+  return ROLES.find((r) => r.id === id) ?? ROLES.find((r) => r.id === 'vendedor')!;
 }
 
 // ============================================================

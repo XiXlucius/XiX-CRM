@@ -30,6 +30,7 @@ import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 
 const ROLE_ICONS: Record<Role, typeof ShieldCheck> = {
+  nuevo: User,
   admin: ShieldCheck,
   gerente: Users,
   supervisor: Eye,

@@ -176,34 +176,47 @@ body::before {
 .ntGlowRed   { animation: ntGlowRed   var(--gd, 2s) ease-in-out var(--gl, 0s) infinite; }
 
 /* ── § 6.5 — Barrido láser neón en títulos ────────────────────────────── */
-/* Color de respaldo primero: si el navegador no soporta `background-clip: text`
-   el texto se ve normal en vez de desaparecer. */
-.ntNeonBg { color: var(--color-text); }
 
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .ntNeonBg,
-  /* Todos los títulos. El prefijo `.neon-titles` lo pone el JS DESPUÉS de que la
-     app arranca: si algo falla antes, el texto nunca queda transparente.
-     Y `.neon-titles h1` (0,1,1) gana a las clases de color de Tailwind (0,1,0),
-     así que no hace falta !important. */
-  .neon-titles h1,
-  .neon-titles h2,
-  .neon-titles h3 {
-    background-image: linear-gradient(100deg,
-      #e9e9ed 38%, #ffffff 47%, #e3ddff 49%, #b5abfc 51%,
-      #9184d9 53%, #ffffff 55%, #e9e9ed 62%);
-    background-size: 240% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
+/* El prefijo `.neon-titles` lo añade el JS cuando la app ya está en pie: esa es
+   la red de seguridad. Si algo falla antes, los títulos nunca quedan invisibles.
+   `.neon-titles h1` (0,1,1) gana a las clases de color de Tailwind (0,1,0), así
+   que el degradado se impone sin necesidad de !important.
 
-  .neon-titles h1,
-  .neon-titles h2,
-  .neon-titles h3 {
-    animation: ntLaser var(--nd, 3.4s) linear var(--nl, 0s) infinite;
-  }
+   NOTA: aquí NO va un @supports. `@supports (-webkit-background-clip: text)`
+   devuelve false en varios navegadores que sí lo soportan, y eso desactivaba el
+   efecto entero sin avisar. */
+.ntNeonBg,
+.neon-titles h1,
+.neon-titles h2,
+.neon-titles h3 {
+  /* Los extremos son el color normal del texto: en reposo el título se ve como
+     siempre. La banda central lleva una sombra justo antes y después del núcleo
+     blanco — ese contraste es lo que hace que el destello se lea como un láser
+     cruzando y no como un cambio de tono. */
+  background-image: linear-gradient(100deg,
+    #e9e9ed 38%,
+    #b4b9cc 45%,
+    #ffffff 48%,
+    #ddd4ff 49.5%,
+    #9184d9 51%,
+    #ffffff 52.5%,
+    #b4b9cc 56%,
+    #e9e9ed 63%);
+  background-size: 240% 100%;
+  /* Reposo: la banda queda fuera del texto. */
+  background-position: 260% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* El halo de h1-h4 pintaría una mancha detrás del texto transparente. */
+  text-shadow: none;
+}
+
+/* La clase la pone y la quita el JS (neonSweep.ts) en cada pasada, con su propia
+   duración. Una sola iteración: cruza y se detiene hasta la siguiente. */
+.nt-sweep {
+  animation: ntLaser var(--nd, 4s) cubic-bezier(0.45, 0, 0.55, 1) 1 both;
 }
 .ntNeonAnim { animation: ntLaser var(--nd, 3.4s) linear var(--nl, 0s) infinite; }
 @keyframes ntLaser {
@@ -219,10 +232,14 @@ body::before {
 .ntConstellation { animation: ntConstellationPulse 2.2s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Se apaga el movimiento grande: entradas deslizantes, pulsos del calendario,
+     latido del logo. El barrido de los títulos SIGUE corriendo — es un brillo
+     sobre el texto, no desplazamiento de elementos, y es lo que da vida a la
+     interfaz. Si alguna vez quieres apagarlo también, añade aquí
+     `.ntNeonAnim, .neon-titles h1, .neon-titles h2, .neon-titles h3`. */
   .ntInL, .ntInR, .ntStagger > *,
   .ntGlowGreen, .ntGlowBlue, .ntGlowRed,
-  .ntNeonAnim, .ntConstellation { animation: none !important; }
-  .ntNeonBg { color: var(--color-text); background-image: none; }
+  .ntConstellation { animation: none !important; }
 }
 
 @layer components {

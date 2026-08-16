@@ -80,12 +80,32 @@ const PRESETS = {
 - `lineDist` — a qué distancia se conectan entre sí
 - `lineAlpha` / `dotAlpha` — opacidad de líneas y puntos
 
-Y la repulsión al mouse:
+Y la gravedad del cursor (atrae las partículas hacia el mouse):
 
 ```ts
-const REPEL_RADIUS = 90;      // radio de influencia en px
-const REPEL_STRENGTH = 0.9;   // fuerza del empuje
+const GRAVITY_RADIUS = 230;   // radio de influencia en px
+const GRAVITY = 0.05;         // fuerza del tirón — más alto, más agresivo
+const DEAD_ZONE = 26;         // no colapsan sobre el puntero
+const RELAX = 0.035;          // rapidez con que vuelven a su deriva normal
+const MAX_SPEED = 3.2;        // tope, para que nada salga disparado
 ```
+
+Login y menú principal usan el mismo preset a propósito.
+
+### Ritmo del láser en los títulos
+
+En `src/lib/neonSweep.ts`:
+
+```ts
+const SWEEP_MIN = 3.4;    // cuánto tarda en cruzar  →  3.4s a 6.0s
+const SWEEP_RANGE = 2.6;
+
+const GAP_MIN = 7;        // cuánto descansa entre cruces  →  7s a 23s
+const GAP_RANGE = 16;
+```
+
+Sube `GAP_MIN` si aparece demasiado seguido. Sube `SWEEP_MIN` si quieres que
+cruce más despacio.
 
 ---
 

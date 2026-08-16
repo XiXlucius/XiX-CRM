@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider, useStore } from './store';
-import { OrgProvider } from './context/OrgContext';
+import { OrgProvider, useOrg } from './context/OrgContext';
+import { PendingApprovalScreen } from './components/PendingApprovalScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
@@ -124,6 +125,22 @@ function LoadErrorScreen({ message, onRetry }: { message: string; onRetry: () =>
 
 function AppGate() {
   const { loadError, retryLoad } = useStore();
+  const { role, loading: orgLoading } = useOrg();
+
+  // Esperamos a saber el rol real antes de decidir. Sin esto, un admin vería
+  // la pantalla de "pendiente de aprobación" durante un parpadeo en cada carga.
+  if (orgLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={22} className="text-accent animate-spin" />
+      </div>
+    );
+  }
+
+  // Rol `nuevo` = sin ningún permiso. No tiene sentido enseñarle el CRM: todas
+  // sus consultas rebotarían contra RLS.
+  if (role === 'nuevo') return <PendingApprovalScreen />;
+
   if (loadError) return <LoadErrorScreen message={loadError} onRetry={retryLoad} />;
   return <AppShell />;
 }
