@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, CalendarDays } from 'lucide-react';
 
 // ---------- Status helpers ----------
 
@@ -199,9 +199,10 @@ export function NumberInput({
   onChange,
   min,
   max,
-  step,
+  step = 1,
   className = 'input',
   placeholder,
+  stepper = true,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -210,14 +211,31 @@ export function NumberInput({
   step?: number;
   className?: string;
   placeholder?: string;
+  /** Muestra las flechas de subir/bajar. */
+  stepper?: boolean;
 }) {
   const [raw, setRaw] = useState<string | null>(null);
   const shown = raw === null ? (value === 0 ? '' : value) : raw;
-  return (
+
+  const clamp = (v: number) => {
+    if (min !== undefined) v = Math.max(min, v);
+    if (max !== undefined) v = Math.min(max, v);
+    return v;
+  };
+
+  // Se redondea a 4 decimales para que sumar pasos de 0.1 no produzca
+  // 0.30000000000000004 (aritmética de punto flotante).
+  const bump = (dir: 1 | -1) => {
+    const base = Number.isFinite(value) ? value : 0;
+    setRaw(null);
+    onChange(clamp(Number((base + dir * step).toFixed(4))));
+  };
+
+  const field = (
     <input
       type="number"
       inputMode="decimal"
-      className={className}
+      className={`${className}${stepper ? ' pr-8' : ''}`}
       value={shown}
       placeholder={placeholder}
       min={min}
@@ -233,13 +251,44 @@ export function NumberInput({
         }
         const parsed = Number(next);
         if (Number.isNaN(parsed)) return;
-        let v = parsed;
-        if (min !== undefined) v = Math.max(min, v);
-        if (max !== undefined) v = Math.min(max, v);
-        onChange(v);
+        onChange(clamp(parsed));
       }}
       onBlur={() => setRaw(null)}
     />
+  );
+
+  if (!stepper) return field;
+
+  const atMax = max !== undefined && value >= max;
+  const atMin = min !== undefined && value <= min;
+
+  return (
+    <div className="relative">
+      {field}
+      {/* Flechas propias, en lugar de las grises del navegador. */}
+      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex flex-col gap-px">
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Aumentar"
+          disabled={atMax}
+          onClick={() => bump(1)}
+          className={`nt-step ${atMax ? 'opacity-25 pointer-events-none' : ''}`}
+        >
+          <ChevronUp size={12} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Disminuir"
+          disabled={atMin}
+          onClick={() => bump(-1)}
+          className={`nt-step ${atMin ? 'opacity-25 pointer-events-none' : ''}`}
+        >
+          <ChevronDown size={12} strokeWidth={2.5} />
+        </button>
+      </div>
+    </div>
   );
 }
 

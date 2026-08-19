@@ -7,6 +7,7 @@ import { Card, SectionHeader, EmptyState, fmtMoney, Modal } from './ui';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 import { getTodayRouteInvoices, nearestNeighborRoute, wazeUrl, googleMapsUrl, type LatLng } from '../lib/routing';
+import { isOverdue } from '../lib/aging';
 
 // Oficina como último respaldo si no hay geolocalización ni origen guardado para el agente.
 const OFFICE_ORIGIN: LatLng = { lat: 10.4989, lng: -66.8534 }; // Chacao
@@ -73,9 +74,12 @@ export function RutaCobroTab() {
     return m;
   }, [todayInvoices]);
 
-  const isOverdue = useMemo(() => {
+  // Clientes con al menos una factura vencida hoy en la ruta — se calcula por fecha,
+  // no por el estado guardado (ver src/lib/aging.ts).
+  const overdueClients = useMemo(() => {
     const s = new Set<string>();
-    todayInvoices.forEach((inv) => { if (inv.status === 'vencida') s.add(inv.clientId); });
+    const now = new Date();
+    todayInvoices.forEach((inv) => { if (isOverdue(inv, now)) s.add(inv.clientId); });
     return s;
   }, [todayInvoices]);
 
@@ -152,7 +156,7 @@ export function RutaCobroTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm text-metal-100">{client.fullName}</p>
-                      {isOverdue.has(client.id) && <span className="chip bg-danger-500/15 text-danger-400 text-2xs">Mora</span>}
+                      {overdueClients.has(client.id) && <span className="chip bg-danger-500/15 text-danger-400 text-2xs">Mora</span>}
                     </div>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin size={11} /> {client.address}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{stop.distanceFromPrevKm.toFixed(1)} km desde la parada anterior · {fmtMoney(debtByClient.get(client.id) ?? 0)} adeudado</p>

@@ -1,4 +1,5 @@
 import type { Client, Invoice, TeamMember, Product } from '../types';
+import { isOverdue } from './aging';
 
 export function toCSV(rows: Record<string, unknown>[], headers: { key: string; label: string }[]): string {
   const head = headers.map((h) => `"${h.label}"`).join(',');
@@ -163,6 +164,9 @@ type PrintableInvoice = Omit<
 export function printInvoice(invoice: PrintableInvoice, client: Client | undefined) {
   const w = window.open('', '_blank', 'width=800,height=600');
   if (!w) return;
+  // El estado impreso se deduce de la fecha: una factura pendiente cuya fecha ya
+  // pasó debe salir como VENCIDA, no como PENDIENTE. Ver src/lib/aging.ts.
+  const status = isOverdue(invoice) ? 'vencida' : invoice.status;
   const finalPrice = client
     ? client.productCost * (1 + 0.16) * (1 - 0)
     : invoice.amount;
@@ -183,7 +187,7 @@ export function printInvoice(invoice: PrintableInvoice, client: Client | undefin
     <div style="text-align:right">
       <p style="margin:0;font-weight:600">Factura #${invoice.id.slice(0, 8).toUpperCase()}</p>
       <p style="margin:4px 0 0;color:#64748b;font-size:12px">${new Date(invoice.dueDate).toLocaleDateString('es-VE')}</p>
-      <span class="badge" style="background:${invoice.status === 'pagada' ? '#dcfce7' : invoice.status === 'vencida' ? '#fee2e2' : '#fef9c3'};color:${invoice.status === 'pagada' ? '#166534' : invoice.status === 'vencida' ? '#991b1b' : '#854d0e'}">${invoice.status.toUpperCase()}</span>
+      <span class="badge" style="background:${status === 'pagada' ? '#dcfce7' : status === 'vencida' ? '#fee2e2' : '#fef9c3'};color:${status === 'pagada' ? '#166534' : status === 'vencida' ? '#991b1b' : '#854d0e'}">${status.toUpperCase()}</span>
     </div>
   </div>
   <div style="margin-top:20px">

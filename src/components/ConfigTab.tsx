@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useStore, useCurrentRole } from '../store';
 import { ROLES, NAV_ITEMS } from '../data';
-import { Card, SectionHeader, fmtDate } from './ui';
+import { Card, SectionHeader, fmtDate, NumberInput } from './ui';
 import type { Permission, Role } from '../types';
 import type { BusinessSettings } from '../lib/scoring';
 import { useToast } from '../context/ToastContext';
@@ -310,13 +310,9 @@ function NumberField({ label, value, onChange, icon }: { label: string; value: n
   return (
     <div>
       <label className="label">{icon && <span className="inline mr-1">{icon}</span>}{label}</label>
-      <input
-        type="number"
-        step="0.1"
-        className="input"
-        value={value}
-        onChange={(e) => onChange(+e.target.value)}
-      />
+      {/* Usa el NumberInput compartido para heredar las flechas del CRM en vez
+          de las grises del navegador, y para poder vaciar el campo al escribir. */}
+      <NumberInput value={value} onChange={onChange} step={1} min={0} />
     </div>
   );
 }

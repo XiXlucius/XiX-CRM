@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, AlertTriangle, CalendarClock, X, ArrowRight, CircleDot } from 'lucide-react';
 import type { Invoice, Client } from '../types';
 import { Card, fmtMoney } from './ui';
+import { isOverdue } from '../lib/aging';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MONTHS = [
@@ -361,7 +362,7 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {invoice.isDownPayment ? 'Inicial' : `Cuota ${invoice.installmentNumber}/${invoice.totalInstallments}`}
-                    {invoice.status === 'vencida' && <span className="ml-1.5 text-danger-400">· vencida</span>}
+                    {isOverdue(invoice) && <span className="ml-1.5 text-danger-400">· vencida</span>}
                   </p>
                 </div>
               </div>
@@ -389,7 +390,8 @@ function buildDay(date: Date, isCurrentMonth: boolean, byDay: Map<string, { invo
   const regulares: { invoice: Invoice; client: Client | undefined }[] = [];
 
   items.forEach((item) => {
-    const isMorosa = item.invoice.status === 'vencida' || item.client?.status === 'en_mora';
+    // Vencida por fecha, no por el estado guardado (que nunca se asigna).
+    const isMorosa = isOverdue(item.invoice) || item.client?.status === 'en_mora';
     if (isMorosa) morosidad.push(item);
     else regulares.push(item);
   });

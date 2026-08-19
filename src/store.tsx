@@ -29,6 +29,20 @@ import { supabase } from './lib/supabase';
 import { useOrg } from './context/OrgContext';
 import { logAudit } from './lib/audit';
 import { assessRisk, DEFAULT_SETTINGS, type BusinessSettings } from './lib/scoring';
+import { isOverdue, daysOverdue, effectiveClientStatus } from './lib/aging';
+
+/**
+ * Fecha en que se activaron las multas automáticas por atraso.
+ *
+ * Hasta esta fecha el sistema NUNCA aplicó un recargo: la función que los calcula
+ * filtraba por un estado de factura que no se asignaba en ninguna parte. Al
+ * arreglarlo, se decidió no cobrar retroactivamente el atraso ya acumulado —
+ * ningún cliente debe recibir una multa por semanas que nadie le notificó.
+ *
+ * Solo se cobran las semanas de atraso posteriores a esta fecha.
+ * No la muevas hacia atrás: eso sí generaría cobros retroactivos.
+ */
+const LATE_FEE_START_MS = new Date('2026-08-16T00:00:00').getTime();
 import { friendlyError } from './lib/errors';
 
 // ============================================================
@@ -623,7 +637,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const scoringChanged = SCORING_FIELDS.some((k) => patch[k] !== undefined);
     let recomputed: number | undefined;
     if (old && scoringChanged && patch.riskScore === undefined) {
-      recomputed = assessRisk({ ...old, ...patch }, state.settings).score;
+      // Con el estado de mora derivado, no el guardado: si no, el factor de
+      // historial de pago puntúa como si el cliente nunca hubiera fallado.
+      const withStatus = { ...old, status: effectiveClientStatus(old, state.invoices), ...patch };
+      recomputed = assessRisk(withStatus, state.settings).score;
       dbPatch.risk_score = recomputed;
     }
 
@@ -966,9 +983,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const alerts: { type: string; title: string; body: string; priority: AppNotification['priority']; link: string }[] = [];
     const now = Date.now();
 
-    // Overdue invoices
+    // Overdue invoices — por fecha, no por el estado guardado (ver src/lib/aging.ts).
+    // Las más atrasadas primero: son las que más urge atender.
     state.invoices
-      .filter((i) => i.status === 'vencida')
+      .filter((i) => isOverdue(i))
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 5)
       .forEach((i) => alerts.push({
         type: 'overdue',
@@ -1195,15 +1214,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const WEEKLY_FEE = 4;
     const newFees: LateFee[] = [];
     for (const inv of state.invoices) {
-      if (inv.status !== 'vencida') continue;
+      // Vencida por fecha. Antes filtraba por `status !== 'vencida'`, un estado que
+      // el sistema no asigna nunca — por eso NINGÚN cliente recibió jamás un recargo
+      // automático, aunque la app dijera que se aplicaban solos.
+      if (!isOverdue(inv)) continue;
       const dueMs = new Date(inv.dueDate).getTime();
-      const daysLate = Math.floor((now - dueMs) / 86400000);
+      const daysLate = daysOverdue(inv);
       if (daysLate <= GRACE_DAYS) continue;
       const weeksLate = Math.floor((daysLate - GRACE_DAYS) / 7);
       if (weeksLate < 1) continue;
       const existingFees = state.lateFees.filter((f) => f.invoiceId === inv.id);
       const maxWeekApplied = existingFees.length > 0 ? Math.max(...existingFees.map((f) => f.weekNumber)) : 0;
       for (let w = maxWeekApplied + 1; w <= weeksLate; w++) {
+        const appliedAt = dueMs + (GRACE_DAYS + w * 7) * 86400000;
+        // Corte de activación: solo se cobran las semanas de atraso que caen DESPUÉS
+        // de encender el sistema de multas. Sin esto, al activarlo un cliente con 90
+        // días de atraso vería aparecer ~$48 de golpe por semanas ya transcurridas,
+        // que nunca se le notificaron ni se le cobraron. Decisión de Lucius (2026-08).
+        if (appliedAt < LATE_FEE_START_MS) continue;
         const { data, error } = await supabase.from('late_fees').insert({
           user_id: u.id,
         org_id: orgId,
@@ -1211,7 +1239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           invoice_id: inv.id,
           amount: WEEKLY_FEE,
           week_number: w,
-          applied_at: new Date(dueMs + (GRACE_DAYS + w * 7) * 86400000).toISOString(),
+          applied_at: new Date(appliedAt).toISOString(),
         }).select('*').single();
         if (!error && data) {
           newFees.push(mapLateFee(data as Record<string, unknown>));
@@ -1255,8 +1283,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // El estado "en mora" de un cliente se deduce de sus facturas, no se guarda.
+  // Se corrige aquí, en un solo punto, para que TODAS las pantallas lo vean igual
+  // (lista de clientes, dashboard, mapa de calor y el motor de scoring).
+  // Internamente `state.clients` sigue crudo, así que nunca se escribe de vuelta
+  // a la base un estado que en realidad es calculado. Ver src/lib/aging.ts.
+  const derivedClients = useMemo(() => {
+    const now = new Date();
+    return state.clients.map((c) => {
+      const status = effectiveClientStatus(c, state.invoices, now);
+      return status === c.status ? c : { ...c, status };
+    });
+  }, [state.clients, state.invoices]);
+
   const value: StoreValue = useMemo(() => ({
     ...state,
+    clients: derivedClients,
     user,
     loading,
     loadError,

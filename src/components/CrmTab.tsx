@@ -1224,7 +1224,13 @@ function PartialPaymentModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="label">Monto ($)</label>
-                <input type="number" className="input" value={p.amount} onChange={(e) => update(i, 'amount', e.target.value)} />
+                {/* `amount` se guarda como texto para poder quedar vacío; NumberInput
+                    trabaja con números, así que se convierte en ambos sentidos. */}
+                <NumberInput
+                  value={p.amount === '' ? 0 : Number(p.amount)}
+                  onChange={(v) => update(i, 'amount', v === 0 ? '' : String(v))}
+                  min={0}
+                />
               </div>
               <div>
                 <label className="label">Fecha de pago</label>
@@ -1292,8 +1298,8 @@ function RenegotiationModal({
           <div className="flex justify-between"><span className="text-slate-400">Plan actual:</span><span className="text-metal-100">{client.termMonths} meses · {client.interestRate}% · {client.frequency}</span></div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3">
-          <div><label className="label">Nuevo plazo (meses)</label><input type="number" className="input" value={newTerm} onChange={(e) => setNewTerm(+e.target.value)} /></div>
-          <div><label className="label">Nueva tasa (%)</label><input type="number" className="input" value={newRate} onChange={(e) => setNewRate(+e.target.value)} /></div>
+          <div><label className="label">Nuevo plazo (meses)</label><NumberInput value={newTerm} onChange={setNewTerm} min={1} /></div>
+          <div><label className="label">Nueva tasa (%)</label><NumberInput value={newRate} onChange={setNewRate} min={0} step={0.5} /></div>
           <div><label className="label">Frecuencia</label><select className="input" value={newFreq} onChange={(e) => setNewFreq(e.target.value as PaymentFrequency)}><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div>
         </div>
         <div><label className="label">Motivo de la renegociación</label><textarea className="input min-h-[72px]" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: Cliente perdió empleo, acuerdo de pago ampliado..." /></div>

@@ -1,0 +1,30 @@
+# Normalización de finales de línea.
+#
+# Sin esto, Windows guarda los archivos con finales CRLF y el repositorio los
+# tiene en LF. Git entonces marca el archivo entero como modificado aunque no
+# se haya tocado ni una letra — 19 archivos aparecían "cambiados" sin cambio
+# real de contenido, lo que hacía imposible leer `git status` y ensuciaba cada
+# guardado con miles de líneas fantasma.
+#
+# `text=auto eol=lf` guarda todo en LF dentro del repositorio, que es lo estándar.
+
+* text=auto eol=lf
+
+# Los .bat SÍ necesitan CRLF: son scripts de Windows y algunos intérpretes
+# fallan con finales de línea de Unix.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios: que git no los toque nunca.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.xlsx binary
+*.docx binary
+*.pptx binary

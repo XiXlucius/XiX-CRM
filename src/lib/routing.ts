@@ -1,6 +1,7 @@
 // Ruta de cobro del día — ordenamiento por cercanía (vecino más cercano), no navegación
 // turn-by-turn. Ver HANDOFF-RUTA-COBRO.md para el alcance completo.
 import type { Client, Invoice } from '../types';
+import { isOverdue } from './aging';
 
 export interface LatLng { lat: number; lng: number }
 
@@ -47,13 +48,19 @@ export function nearestNeighborRoute(
 
 // Visitas del día: facturas pendientes que vencen hoy + toda factura vencida (mora), sin
 // importar hace cuánto — el cobrador necesita saber a quién visitar por mora atrasada también.
+//
+// El vencimiento se calcula con `isOverdue` (fecha), no con `status === 'vencida'`. Ese
+// estado no se asigna nunca en el sistema, así que la rama de mora estaba muerta: la ruta
+// solo mostraba lo que vencía exactamente hoy y un cliente con tres semanas de atraso
+// jamás aparecía. Ver src/lib/aging.ts.
 export function getTodayRouteInvoices(invoices: Invoice[], agent: string | 'all', clientById: Map<string, Client>): Invoice[] {
-  const todayKey = new Date().toDateString();
+  const now = new Date();
+  const todayKey = now.toDateString();
   return invoices.filter((inv) => {
     if (inv.status === 'pagada') return false;
     const client = clientById.get(inv.clientId);
     if (agent !== 'all' && client?.assignedAgent !== agent) return false;
-    if (inv.status === 'vencida') return true;
+    if (isOverdue(inv, now)) return true;
     if (inv.status === 'pendiente') return new Date(inv.dueDate).toDateString() === todayKey;
     return false;
   });

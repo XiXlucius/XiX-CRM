@@ -25,7 +25,7 @@ import {
 } from 'recharts';
 import { useStore } from '../store';
 import type { Product } from '../types';
-import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtPct } from './ui';
+import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtPct, NumberInput } from './ui';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 
@@ -389,23 +389,23 @@ function ProductModal({
           </div>
           <div>
             <label className="label">Precio base ($)</label>
-            <input type="number" className="input" value={form.basePrice} onChange={(e) => set('basePrice', +e.target.value)} />
+            <NumberInput value={form.basePrice} onChange={(v) => set('basePrice', v)} min={0} />
           </div>
           <div>
             <label className="label">IVA (%)</label>
-            <input type="number" className="input" value={form.taxPct} onChange={(e) => set('taxPct', +e.target.value)} />
+            <NumberInput value={form.taxPct} onChange={(v) => set('taxPct', v)} min={0} max={100} step={0.5} />
           </div>
           <div>
             <label className="label">Descuento (%)</label>
-            <input type="number" className="input" value={form.discountPct} onChange={(e) => set('discountPct', +e.target.value)} />
+            <NumberInput value={form.discountPct} onChange={(v) => set('discountPct', v)} min={0} max={100} step={0.5} />
           </div>
           <div>
             <label className="label">Stock</label>
-            <input type="number" className="input" value={form.stock} onChange={(e) => set('stock', +e.target.value)} />
+            <NumberInput value={form.stock} onChange={(v) => set('stock', v)} min={0} />
           </div>
           <div>
             <label className="label">Vendido</label>
-            <input type="number" className="input" value={form.sold} onChange={(e) => set('sold', +e.target.value)} />
+            <NumberInput value={form.sold} onChange={(v) => set('sold', v)} min={0} />
           </div>
         </div>
         <div className="rounded-xl bg-accent-500/5 p-3 ring-1 ring-accent-500/20">

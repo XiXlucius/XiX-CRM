@@ -380,6 +380,34 @@ body::before {
     animation: ntTypeGlow 1.4s ease-in-out infinite;
   }
 
+  /* Las flechitas nativas de <input type="number"> las dibuja el navegador y
+     no se pueden pintar: salen grises y rompen la estética oscura. Se ocultan
+     y se reemplazan por las del componente NumberInput (ver ui.tsx). */
+  .input[type='number']::-webkit-outer-spin-button,
+  .input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* ── Stepper propio de NumberInput ── */
+  .nt-step {
+    @apply grid place-items-center transition-all duration-150;
+    height: 13px;
+    width: 20px;
+    border-radius: 4px;
+    color: var(--color-neutral-600);
+  }
+  .nt-step:hover {
+    color: var(--color-accent-300);
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+    box-shadow: 0 0 10px -2px var(--glow-accent);
+  }
+  .nt-step:active { transform: scale(0.88); }
+
   .label {
     @apply block text-xs font-medium mb-1.5;
     color: var(--color-neutral-500);

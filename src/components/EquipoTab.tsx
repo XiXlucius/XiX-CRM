@@ -19,7 +19,7 @@ import {
 import { useStore } from '../store';
 import { ROLES } from '../data';
 import type { TeamMember, Role } from '../types';
-import { Card, SectionHeader, Modal, fmtMoney, fmtPct, fmtDate } from './ui';
+import { Card, SectionHeader, Modal, fmtMoney, fmtPct, fmtDate, NumberInput } from './ui';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 import { OrgMembers } from './OrgMembers';
@@ -407,23 +407,23 @@ function MemberModal({
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Meta mensual ($)</label>
-            <input type="number" className="input" value={form.goalMonthly} onChange={(e) => set('goalMonthly', +e.target.value)} />
+            <NumberInput value={form.goalMonthly} onChange={(v) => set('goalMonthly', v)} min={0} />
           </div>
           <div>
             <label className="label">Logrado mensual ($)</label>
-            <input type="number" className="input" value={form.achievedMonthly} onChange={(e) => set('achievedMonthly', +e.target.value)} />
+            <NumberInput value={form.achievedMonthly} onChange={(v) => set('achievedMonthly', v)} min={0} />
           </div>
           <div>
             <label className="label">Comisión (%)</label>
-            <input type="number" step="0.1" className="input" value={form.commissionRatePct} onChange={(e) => set('commissionRatePct', +e.target.value)} />
+            <NumberInput value={form.commissionRatePct} onChange={(v) => set('commissionRatePct', v)} min={0} max={100} step={0.1} />
           </div>
           <div>
             <label className="label">Cartera activa ($)</label>
-            <input type="number" className="input" value={form.activePortfolio} onChange={(e) => set('activePortfolio', +e.target.value)} />
+            <NumberInput value={form.activePortfolio} onChange={(v) => set('activePortfolio', v)} min={0} />
           </div>
           <div>
             <label className="label">Índice de mora (%)</label>
-            <input type="number" step="0.1" className="input" value={form.delinquencyPct} onChange={(e) => set('delinquencyPct', +e.target.value)} />
+            <NumberInput value={form.delinquencyPct} onChange={(v) => set('delinquencyPct', v)} min={0} max={100} step={0.1} />
           </div>
           <div>
             <label className="label">Estado</label>
@@ -438,6 +438,9 @@ function MemberModal({
             <label className="label mb-0">Punto de partida (ruta de cobro)</label>
             <button type="button" onClick={useMyLocation} className="btn-ghost text-2xs"><Navigation size={11} /> Usar mi ubicación actual</button>
           </div>
+          {/* Estos dos van sin flechas a propósito: son coordenadas, y subir de
+              0.0001 en 0.0001 a golpe de clic no le sirve a nadie. Se pegan o se
+              rellenan con el botón de "Usar mi ubicación actual". */}
           <div className="grid grid-cols-2 gap-3">
             <input type="number" step="0.0001" className="input" placeholder="Latitud" value={form.originLat} onChange={(e) => set('originLat', e.target.value === '' ? '' : +e.target.value)} />
             <input type="number" step="0.0001" className="input" placeholder="Longitud" value={form.originLng} onChange={(e) => set('originLng', e.target.value === '' ? '' : +e.target.value)} />

@@ -40,6 +40,7 @@ import {
   printStatement,
 } from '../lib/export';
 import { Card, SectionHeader, fmtMoney, fmtPct, fmtDate } from './ui';
+import { daysOverdue, invoiceBalance } from '../lib/aging';
 
 const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -69,22 +70,35 @@ export function ReportesTab() {
   const totalPartial = partialPayments.reduce((a, p) => a + p.amount, 0);
 
   // ---- Aging buckets ----
+  // Dos correcciones sobre la versión anterior:
+  //  1. Filtraba por `status === 'vencida'`, un estado que el sistema no asigna nunca,
+  //     así que este reporte salía siempre vacío. Ahora el atraso se deduce de la fecha.
+  //  2. Sumaba el monto completo de la factura ignorando los abonos parciales ya
+  //     registrados, con lo que la cartera se veía más enferma de lo que estaba.
+  //     Ahora suma el saldo real.
+  // Los tramos pasan a 1-30 / 31-60 / 61-90 / 90+, que es el estándar del sector, más
+  // un tramo "Corriente" para ver también la parte sana de la cartera.
   const aging = useMemo(() => {
-    const now = Date.now();
+    const now = new Date();
     const buckets = [
-      { label: '0-7 días', min: 0, max: 7, count: 0, amount: 0 },
-      { label: '8-15 días', min: 8, max: 15, count: 0, amount: 0 },
-      { label: '16-30 días', min: 16, max: 30, count: 0, amount: 0 },
+      { label: 'Corriente', min: -Infinity, max: 0, count: 0, amount: 0 },
+      { label: '1-30 días', min: 1, max: 30, count: 0, amount: 0 },
       { label: '31-60 días', min: 31, max: 60, count: 0, amount: 0 },
-      { label: '61+ días', min: 61, max: Infinity, count: 0, amount: 0 },
+      { label: '61-90 días', min: 61, max: 90, count: 0, amount: 0 },
+      { label: '90+ días', min: 91, max: Infinity, count: 0, amount: 0 },
     ];
-    invoices.filter((i) => i.status === 'vencida').forEach((inv) => {
-      const daysLate = Math.floor((now - new Date(inv.dueDate).getTime()) / 86400000);
-      const bucket = buckets.find((b) => daysLate >= b.min && daysLate <= b.max);
-      if (bucket) { bucket.count++; bucket.amount += inv.amount; }
-    });
+    invoices
+      .filter((i) => i.status !== 'pagada')
+      .forEach((inv) => {
+        const late = daysOverdue(inv, now);
+        const bucket = buckets.find((b) => late >= b.min && late <= b.max);
+        if (bucket) {
+          bucket.count++;
+          bucket.amount += invoiceBalance(inv, partialPayments);
+        }
+      });
     return buckets;
-  }, [invoices]);
+  }, [invoices, partialPayments]);
 
   const agingColors = ['#9397ab', '#e0cba3', '#c9ae7d', '#e8b4b4', '#d09090'];
 

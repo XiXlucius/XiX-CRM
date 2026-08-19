@@ -19,7 +19,41 @@ fallos no se ven en pantalla pero sí ahí.
 
 ---
 
-## 0. Lo de la última sesión — prueba esto primero
+## 0-A. La mora (lo más nuevo) — prueba esto de primero
+
+Hasta ahora **nada marcaba la mora**. El estado "vencida" existía pero no se
+asignaba nunca, así que la ruta de cobro, el filtro de vencidas, el aging, las
+alertas y las multas estaban muertos en silencio. Ya se arregló: el vencimiento
+se deduce de la fecha.
+
+**Prepara el caso de prueba:** ponle a una factura una fecha de vencimiento de
+hace ~45 días (edítala en Facturación o directo en Supabase). Antes no aparecía
+en ningún lado.
+
+- [ ] **Facturación** → filtro "Vencidas" ahora la muestra
+- [ ] **Ruta de cobro** → ese cliente aparece en la lista con la etiqueta "Mora"
+      (antes solo salía lo que vencía exactamente hoy)
+- [ ] **Reportes** → "Aging de cartera" ya no sale vacío, y los tramos ahora son
+      Corriente / 1-30 / 31-60 / 61-90 / 90+
+- [ ] La campana de **notificaciones** muestra "Factura vencida"
+- [ ] **Calendario de cobros** → ese día sale en rojo
+- [ ] El **cliente** aparece como "En mora" solo, sin que lo marques
+- [ ] Imprimir esa factura dice **VENCIDA**, no PENDIENTE
+
+**Prueba clave de fechas:** una factura que vence **hoy** NO debe salir como
+vencida. Solo a partir de mañana.
+
+> **Multas:** empiezan a correr desde hoy, no hacia atrás. Un cliente con 90 días
+> de atraso **no** recibe $48 de golpe — arranca en cero y acumula $4 por semana
+> de aquí en adelante. Eso fue decisión tuya y está fijado en el código.
+
+> **Ojo con el estado del cliente:** si un cliente tiene facturas vencidas y tú lo
+> pones en "Activo" a mano, volverá a mostrarse "En mora". No es un fallo de
+> guardado: el estado ahora lo mandan las facturas, no el campo.
+
+---
+
+## 0. Lo de la sesión anterior
 
 Todo esto está verificado solo por compilación, nunca ejecutado. Es lo más
 probable que falle, así que va de primero.

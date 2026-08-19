@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store';
 import type { Invoice, InvoiceStatus, Permission } from '../types';
-import { Card, SectionHeader, StatusChip, Modal, EmptyState, fmtMoney, fmtDate, fmtDateShort, DatePicker } from './ui';
+import { Card, SectionHeader, StatusChip, Modal, EmptyState, fmtMoney, fmtDate, fmtDateShort, DatePicker, NumberInput } from './ui';
+import { effectiveStatus } from '../lib/aging';
 import { CobrosCalendar } from './CobrosCalendar';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
@@ -25,8 +26,17 @@ const STATUS_ICONS: Record<InvoiceStatus, typeof CheckCircle2> = {
 };
 
 export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId: string) => void }) {
-  const { invoices, clients, markInvoicePaid, addInvoice } = useStore();
+  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice } = useStore();
   const toast = useToast();
+
+  // El estado `'vencida'` no se guarda nunca en la base — se deduce de la fecha.
+  // Se normaliza aquí una sola vez para que el filtro, los contadores y las
+  // tarjetas de abajo funcionen sin tener que repetir el cálculo en cada uno.
+  // Ver src/lib/aging.ts.
+  const invoices = useMemo(() => {
+    const now = new Date();
+    return rawInvoices.map((i) => ({ ...i, status: effectiveStatus(i, now) }));
+  }, [rawInvoices]);
   const [filter, setFilter] = useState<InvoiceStatus | 'all'>('all');
   const [adding, setAdding] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
@@ -292,7 +302,7 @@ function InvoiceFormModal({
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Monto ($)</label>
-            <input type="number" className="input" value={form.amount} onChange={(e) => set('amount', +e.target.value)} />
+            <NumberInput value={form.amount} onChange={(v) => set('amount', v)} min={0} />
           </div>
           <div>
             <label className="label">Fecha de vencimiento</label>
@@ -309,11 +319,11 @@ function InvoiceFormModal({
             <>
               <div>
                 <label className="label">Nº de cuota</label>
-                <input type="number" className="input" value={form.installmentNumber} onChange={(e) => set('installmentNumber', +e.target.value)} />
+                <NumberInput value={form.installmentNumber} onChange={(v) => set('installmentNumber', v)} min={1} />
               </div>
               <div>
                 <label className="label">Total cuotas</label>
-                <input type="number" className="input" value={form.totalInstallments} onChange={(e) => set('totalInstallments', +e.target.value)} />
+                <NumberInput value={form.totalInstallments} onChange={(v) => set('totalInstallments', v)} min={1} />
               </div>
             </>
           )}
