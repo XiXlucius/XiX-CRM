@@ -50,7 +50,31 @@ echo Ultimos guardados:
 echo.
 git log --oneline -5
 echo.
-echo Listo. Tu trabajo esta a salvo.
+echo Listo. Tu trabajo esta a salvo en esta computadora.
+echo.
+
+REM Si ya se conecto un repositorio en GitHub (ver PUBLICAR-EN-LINEA.md),
+REM esto sube el guardado y Vercel/Netlify publican la version nueva solos.
+REM Si todavia no hay nada conectado, no pasa nada malo: solo se avisa.
+git remote get-url origin >nul 2>&1
+if errorlevel 1 (
+  echo No esta conectado a GitHub todavia, asi que solo quedo
+  echo guardado aqui. Si quieres que se vea en linea, hay que
+  echo conectarlo primero - ver PUBLICAR-EN-LINEA.md
+) else (
+  echo Subiendo a GitHub...
+  git push 2>&1
+  if errorlevel 1 (
+    echo.
+    echo [AVISO] No se pudo subir a GitHub. El guardado local si
+    echo         quedo bien. Copia el mensaje de arriba y pidele
+    echo         ayuda a Claude con eso.
+  ) else (
+    echo Subido. En uno o dos minutos deberia verse actualizado
+    echo en tu pagina en linea.
+  )
+)
+
 echo.
 echo Para volver a un punto anterior, pideme ayuda y dame el codigo
 echo de 7 letras que aparece a la izquierda del guardado que quieras.
