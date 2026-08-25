@@ -72,7 +72,7 @@ export function CursoTab() {
       </div>
 
       {/* Badges */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Insignias de rendimiento" subtitle="Se desbloquean al superar puntajes en quizzes" icon={<Award size={16} />} />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {BADGES.map((b) => {

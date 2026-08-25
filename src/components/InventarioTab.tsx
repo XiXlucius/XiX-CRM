@@ -161,7 +161,7 @@ export function InventarioTab() {
       )}
 
       {/* Rotation chart */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Gráfico de rotación"
           subtitle="Cantidad vendida vs. stock actual por producto"

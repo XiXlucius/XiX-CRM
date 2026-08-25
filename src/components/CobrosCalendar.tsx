@@ -200,7 +200,7 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
       onClick={onClick}
       disabled={!hasActivity}
       style={{ ...tintStyle, ...glowVars }}
-      className={`relative flex flex-col items-stretch rounded-lg border p-1 sm:p-1.5 min-h-[64px] sm:min-h-[88px] transition-all ${glowClass} ${
+      className={`relative flex min-w-0 flex-col items-stretch overflow-hidden rounded-lg border p-1 sm:p-1.5 min-h-[64px] sm:min-h-[88px] transition-all ${glowClass} ${
         !day.isCurrentMonth
           ? 'border-transparent bg-transparent opacity-40'
           : day.isToday
@@ -218,21 +218,22 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
         {day.isToday && <CircleDot size={10} className="text-accent-400" />}
       </div>
 
-      {/* Tags */}
+      {/* Tags — en móvil la celda mide ~41px, así que se oculta la palabra y
+          queda solo el número; si no, la etiqueta ensancha la rejilla de 7. */}
       {hasActivity && (
-        <div className="mt-1 flex flex-col gap-1">
+        <div className="mt-1 flex min-w-0 flex-col gap-1">
           {hasMorosidad && (
-            <span className="rounded-md bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger-400 leading-tight">
-              {day.morosidad.length} Mora
+            <span className="truncate rounded-md bg-danger/15 px-1 py-0.5 text-[10px] font-semibold text-danger-400 leading-tight sm:px-1.5">
+              {day.morosidad.length}<span className="hidden sm:inline"> Mora</span>
             </span>
           )}
           {hasRegulares && (
-            <span className="rounded-md bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-300 leading-tight">
-              {day.regulares.length} Cobros
+            <span className="truncate rounded-md bg-accent-500/15 px-1 py-0.5 text-[10px] font-semibold text-accent-300 leading-tight sm:px-1.5">
+              {day.regulares.length}<span className="hidden sm:inline"> Cobros</span>
             </span>
           )}
           {/* Total tag */}
-          <span className="mt-auto rounded-md bg-tint/5 px-1.5 py-0.5 text-[10px] num text-slate-400 leading-tight">
+          <span className="mt-auto hidden truncate rounded-md bg-tint/5 px-1.5 py-0.5 text-[10px] num text-slate-400 leading-tight sm:block">
             {fmtMoneyCompact(day.total)}
           </span>
         </div>

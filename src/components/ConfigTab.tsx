@@ -94,7 +94,7 @@ export function ConfigTab() {
       />
 
       {/* Business parameters */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Parámetros financieros" subtitle="Aplican a nuevas solicitudes" icon={<Percent size={16} />} />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <NumberField label="Inicial mínima (%)" value={form.min_down_payment_pct} onChange={(v) => set('min_down_payment_pct', v)} icon={<Percent size={13} />} />
@@ -104,7 +104,7 @@ export function ConfigTab() {
       </Card>
 
       {/* Commission tiers */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Tiers de comisión" subtitle="Por nivel de desempeño del agente" icon={<Users size={16} />} />
         <div className="grid sm:grid-cols-3 gap-4">
           <NumberField label="Tier 1 — Básico (%)" value={form.commission_tier1} onChange={(v) => set('commission_tier1', v)} />
@@ -114,7 +114,7 @@ export function ConfigTab() {
       </Card>
 
       {/* Scoring weights */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Pesos del motor de scoring"
           subtitle="Reparten el puntaje de riesgo entre los cinco criterios"
@@ -150,7 +150,7 @@ export function ConfigTab() {
       </div>
 
       {/* Backups */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Respaldos de datos" subtitle="Copias de seguridad de la base de datos Supabase" icon={<Server size={16} />} />
         <div className="space-y-3">
           <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3 flex items-center justify-between">
@@ -173,7 +173,7 @@ export function ConfigTab() {
       </Card>
 
       {/* Key rotation */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Rotación de credenciales" subtitle="Gestión de service role key y secretos" icon={<KeyRound size={16} />} />
         <div className="space-y-3">
           <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
@@ -199,7 +199,7 @@ export function ConfigTab() {
       </Card>
 
       {/* Admin audit log */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Auditoría de accesos admin" subtitle="Cambios de rol, configuración y credenciales" icon={<History size={16} />} />
         {adminAuditEntries.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-500">Sin eventos de auditoría admin registrados</p>
@@ -222,7 +222,7 @@ export function ConfigTab() {
       </Card>
 
       {/* RBAC matrix */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Matriz de permisos por rol" subtitle="Visualiza qué módulos accede cada perfil" icon={<Lock size={16} />} />
         {/* En móvil una matriz no cabe: se muestra un bloque por módulo con
             los roles que sí tienen acceso. */}
@@ -304,7 +304,7 @@ export function ConfigTab() {
       </Card>
 
       {/* Current role */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="flex items-start gap-4">
           <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300`}>
             {(() => { const Icon = ROLE_ICONS[currentRole.id]; return <Icon size={20} />; })()}
@@ -324,7 +324,7 @@ export function ConfigTab() {
         </div>
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader title="Persistencia de datos" subtitle="Los datos se sincronizan en Supabase con RLS" icon={<Database size={16} />} />
         <p className="text-sm text-slate-400">
           Tu información se almacena de forma segura en la nube, protegida por Row Level Security.

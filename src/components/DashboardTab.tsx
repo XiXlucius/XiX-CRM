@@ -194,7 +194,7 @@ export function DashboardTab() {
 
       {/* Trend chart + status breakdown */}
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <SectionHeader
             title="Evolución de cartera y cobranza"
             subtitle="Últimos 6 meses · valores en USD"
@@ -246,7 +246,7 @@ export function DashboardTab() {
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <SectionHeader
             title="Estado de solicitudes"
             subtitle={`${kpis.total} clientes en cartera`}
@@ -278,7 +278,7 @@ export function DashboardTab() {
       </div>
 
       {/* Top agents */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Top vendedores del mes"
           subtitle="Rendimiento vs. meta"

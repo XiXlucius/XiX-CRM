@@ -191,7 +191,7 @@ function RoleplaySimulator() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="font-display text-sm font-medium text-metal-100">Simulador de roleplay</p>

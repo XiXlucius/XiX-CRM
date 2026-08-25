@@ -475,7 +475,7 @@ function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client)
   };
 
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <SectionHeader title="Mapa de clientes" subtitle={`${clientsWithCoords.length} clientes geolocalizados`} icon={<MapPin size={16} />} />
       <div className="relative h-[320px] sm:h-[400px] lg:h-[480px] rounded-xl overflow-hidden border border-tint/5 [&_.leaflet-tile-pane]:invert [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:saturate-75 [&_.leaflet-control-attribution]:!bg-ink-900/70 [&_.leaflet-control-attribution]:!text-slate-500">
         <MapContainer center={[10.475, -66.865]} zoom={11} scrollWheelZoom style={{ height: '100%', width: '100%' }}>

@@ -199,7 +199,7 @@ export function ReportesTab() {
       </div>
 
       {/* Aging report */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Aging de cartera"
           subtitle="Facturas vencidas agrupadas por días de atraso"
@@ -283,7 +283,7 @@ export function ReportesTab() {
       </Card>
 
       {/* Cash flow projection */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Proyección de flujo de caja"
           subtitle="Ingresos esperados por mes · escenarios optimista y pesimista"
@@ -316,7 +316,7 @@ export function ReportesTab() {
       </Card>
 
       {/* Team performance ranking */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Ranking de desempeño del equipo"
           subtitle="Cobranza efectiva vs. colocación · índice de mora por agente"
@@ -410,7 +410,7 @@ export function ReportesTab() {
       </Card>
 
       {/* Late fees summary */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Resumen de mora automática"
           subtitle="$4/semana por factura vencida tras 3 días de gracia"
@@ -507,7 +507,7 @@ export function ReportesTab() {
       </div>
 
       {/* Delinquency detail */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Reporte de mora"
           subtitle={`${delinquent} clientes en mora`}
@@ -594,7 +594,7 @@ function ExportCard({
   onCSV: () => void; onPDF?: () => void; pdfLabel?: string;
 }) {
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <div className={`grid h-11 w-11 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10`}>
           {icon}

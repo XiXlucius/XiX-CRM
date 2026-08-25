@@ -160,7 +160,7 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
       </div>
 
       {/* Planner timeline */}
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionHeader
           title="Cronograma de cobranzas"
           subtitle={filter === 'por_cobrar' ? 'Solo lo que falta por cobrar — agrupado por semana' : 'Agrupado por semana'}
