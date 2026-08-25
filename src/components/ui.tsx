@@ -76,10 +76,10 @@ export function SectionHeader({
           </div>
         )}
         <div>
-          <h2 className="font-display text-xl font-medium text-metal-100 tracking-tight">
+          <h2 className="font-display text-lg font-medium text-metal-100 tracking-tight sm:text-xl">
             {title}
           </h2>
-          {subtitle && <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-slate-400 mt-0.5 sm:text-sm">{subtitle}</p>}
         </div>
       </div>
       {action}

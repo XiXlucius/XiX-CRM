@@ -67,7 +67,32 @@ export function AuditoriaTab() {
         </Card>
       ) : (
         <Card className="p-0 overflow-hidden">
-          <div className="max-h-[60vh] overflow-y-auto">
+          {/* En móvil la tabla de 5 columnas no cabe: se muestra una lista. */}
+          <div className="lg:hidden max-h-[60vh] divide-y divide-tint/5 overflow-y-auto">
+            {filtered.map((a) => {
+              const Icon = ENTITY_ICONS[a.entity] ?? FileText;
+              const actionMeta = ACTION_STYLES[a.action] ?? { color: 'bg-tint/5 text-slate-400', label: a.action };
+              return (
+                <div key={a.id} className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`chip shrink-0 text-[10px] ${actionMeta.color}`}>{actionMeta.label}</span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-slate-300">
+                      <Icon size={12} className="shrink-0 text-slate-500" />
+                      <span className="truncate">{a.entity.replace('_', ' ')}</span>
+                    </span>
+                  </div>
+                  <p className="mt-1.5 truncate text-xs text-slate-400">{a.userEmail}</p>
+                  <p className="text-[11px] text-slate-500">{fmtDate(a.createdAt)}</p>
+                  {a.newValue && (
+                    <p className="mt-1 truncate text-[11px] text-slate-600">
+                      {JSON.stringify(a.newValue).slice(0, 80)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden lg:block max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-ink-850 backdrop-blur-sm">
                 <tr className="text-left kicker">

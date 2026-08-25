@@ -873,7 +873,7 @@ function ClientDetailModal({
             { id: 'reneg', label: 'Renegociación' },
             { id: 'late', label: 'Mora' },
           ] as const).map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${tab === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-metal-100'}`}>{t.label}</button>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${tab === t.id ? 'bg-accent-500/20 text-accent-200' : 'text-slate-400 hover:text-metal-100'}`}>{t.label}</button>
           ))}
         </div>
 

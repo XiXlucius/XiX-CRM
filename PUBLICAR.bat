@@ -15,7 +15,7 @@ if exist ".git\index.lock" del /f /q ".git\index.lock" >nul 2>&1
 if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Movil: calendario no desborda, tarjetas mas compactas en telefono" >> "%LOG%" 2>&1
+git commit -m "Movil: auditoria en lista, tabla de amortizacion sin desborde, titulos y pestanas mas compactos" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

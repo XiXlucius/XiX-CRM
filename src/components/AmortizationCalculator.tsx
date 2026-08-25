@@ -119,21 +119,23 @@ export function AmortizationCalculator({
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-ink-850 backdrop-blur-sm">
             <tr className="text-left kicker">
-              <th className="px-3 py-2.5 font-medium">#</th>
-              <th className="px-3 py-2.5 font-medium">Cuota</th>
-              <th className="px-3 py-2.5 font-medium">Capital</th>
-              <th className="px-3 py-2.5 font-medium">Interés</th>
-              <th className="px-3 py-2.5 font-medium text-right">Saldo</th>
+              {/* Capital e interés se ocultan en teléfono: cinco columnas de
+                  dinero no caben en 375px y el desglose es informativo. */}
+              <th className="px-2 py-2.5 font-medium sm:px-3">#</th>
+              <th className="px-2 py-2.5 font-medium sm:px-3">Cuota</th>
+              <th className="hidden px-3 py-2.5 font-medium sm:table-cell">Capital</th>
+              <th className="hidden px-3 py-2.5 font-medium sm:table-cell">Interés</th>
+              <th className="px-2 py-2.5 font-medium text-right sm:px-3">Saldo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-tint/5">
             {rows.map((r) => (
               <tr key={r.number} className="table-row">
-                <td className="px-3 py-2 num text-slate-400">{r.number}</td>
-                <td className="px-3 py-2 num text-metal-100">{fmtMoney(r.payment)}</td>
-                <td className="px-3 py-2 num text-accent-300">{fmtMoney(r.principal)}</td>
-                <td className="px-3 py-2 num text-violet-400">{fmtMoney(r.interest)}</td>
-                <td className="px-3 py-2 num text-right text-slate-300">{fmtMoney(r.balance)}</td>
+                <td className="px-2 py-2 num text-slate-400 sm:px-3">{r.number}</td>
+                <td className="px-2 py-2 num text-metal-100 sm:px-3">{fmtMoney(r.payment)}</td>
+                <td className="hidden px-3 py-2 num text-accent-300 sm:table-cell">{fmtMoney(r.principal)}</td>
+                <td className="hidden px-3 py-2 num text-violet-400 sm:table-cell">{fmtMoney(r.interest)}</td>
+                <td className="px-2 py-2 num text-right text-slate-300 sm:px-3">{fmtMoney(r.balance)}</td>
               </tr>
             ))}
           </tbody>
