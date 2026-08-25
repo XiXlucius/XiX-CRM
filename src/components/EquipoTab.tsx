@@ -264,7 +264,7 @@ function TeamMemberCard({ member: m, toggling, onToggle, onEdit }: { member: Tea
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+      <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
         <div>
           <p className="text-[10px] uppercase text-slate-500">Comisión</p>
           <p className="num text-slate-300">{fmtPct(m.commissionRatePct)}</p>
@@ -441,7 +441,7 @@ function MemberModal({
           {/* Estos dos van sin flechas a propósito: son coordenadas, y subir de
               0.0001 en 0.0001 a golpe de clic no le sirve a nadie. Se pegan o se
               rellenan con el botón de "Usar mi ubicación actual". */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="number" step="0.0001" className="input" placeholder="Latitud" value={form.originLat} onChange={(e) => set('originLat', e.target.value === '' ? '' : +e.target.value)} />
             <input type="number" step="0.0001" className="input" placeholder="Longitud" value={form.originLng} onChange={(e) => set('originLng', e.target.value === '' ? '' : +e.target.value)} />
           </div>

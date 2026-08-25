@@ -196,7 +196,7 @@ export function InventarioTab() {
           <EmptyState icon={<Boxes size={22} />} title="Sin productos que coincidan" body="Ajusta el filtro o agrega un producto." />
         </Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <AnimatePresence>
             {filtered.map((p) => {
               const total = p.sold + p.stock;

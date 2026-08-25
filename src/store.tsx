@@ -82,6 +82,7 @@ interface StoreValue extends PersistState {
   addTeamMember: (m: Omit<TeamMember, 'id' | 'joinedAt'>) => Promise<void>;
   markInvoicePaid: (id: string) => Promise<void>;
   addInvoice: (i: Omit<Invoice, 'id'>) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
   generateSchedule: (clientId: string) => Promise<void>;
   addProduct: (p: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (id: string, patch: Partial<Product>) => Promise<void>;
@@ -784,6 +785,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, invoices: [newInvoice, ...s.invoices] }));
   };
 
+  /** Borra una factura de forma permanente. Solo el administrador puede
+   *  hacerlo desde la interfaz — se registra en auditoría con los datos
+   *  que tenía, para poder reconstruirla si hizo falta. */
+  const deleteInvoice: StoreValue['deleteInvoice'] = async (id) => {
+    const previous = state.invoices.find((i) => i.id === id) ?? null;
+    const { error } = await supabase.from('invoices').delete().eq('id', id);
+    if (error) throw error;
+    setState((s) => ({ ...s, invoices: s.invoices.filter((i) => i.id !== id) }));
+    await logAudit('delete', 'invoice', id, previous ? { ...previous } as Record<string, unknown> : null, null);
+  };
+
   // ---- Auto-generate invoice schedule from amortization ----
   const generateSchedule: StoreValue['generateSchedule'] = async (clientId) => {
     const client = state.clients.find((c) => c.id === clientId);
@@ -1315,6 +1327,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addTeamMember,
     markInvoicePaid,
     addInvoice,
+    deleteInvoice,
     generateSchedule,
     addProduct,
     updateProduct,

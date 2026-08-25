@@ -143,7 +143,7 @@ export function DashboardTab() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="Tasa de Conversión"
           value={kpis.conversion}
@@ -284,7 +284,7 @@ export function DashboardTab() {
           subtitle="Rendimiento vs. meta"
           icon={<TrendingUp size={16} />}
         />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {topAgents.map((m, i) => {
             const pct = m.goalMonthly ? (m.achievedMonthly / m.goalMonthly) * 100 : 0;
             return (

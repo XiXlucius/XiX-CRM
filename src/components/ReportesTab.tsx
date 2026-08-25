@@ -228,7 +228,27 @@ export function ReportesTab() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 overflow-x-auto">
+            {/* Tarjetas en móvil */}
+            <div className="mt-4 lg:hidden space-y-2">
+              {aging.map((b, i) => {
+                const total = aging.reduce((a, x) => a + x.amount, 0);
+                return (
+                  <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: agingColors[i] }} />
+                      <span className="truncate font-medium text-metal-100">{b.label}</span>
+                    </span>
+                    <div className="shrink-0 text-right">
+                      <p className="num text-metal-100">{fmtMoney(b.amount)}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {b.count} {b.count === 1 ? 'factura' : 'facturas'} · {total > 0 ? fmtPct((b.amount / total) * 100) : '—'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 hidden lg:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left kicker">
@@ -305,7 +325,44 @@ export function ReportesTab() {
         {teamRanking.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-500">Sin vendedores activos</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Tarjetas en móvil — mismos datos que la tabla de escritorio */}
+          <div className="lg:hidden space-y-2">
+            {teamRanking.map((m, i) => (
+              <div key={m.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+                <div className="flex items-center gap-2">
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-xs font-bold ${i === 0 ? 'bg-amber-500/20 text-amber-400' : i === 1 ? 'bg-slate-400/20 text-slate-300' : i === 2 ? 'bg-orange-700/20 text-orange-400' : 'text-slate-500'}`}>
+                    {i + 1}
+                  </span>
+                  <p className="flex-1 truncate font-medium text-metal-100">{m.name}</p>
+                  <span className={`chip shrink-0 ${m.delinquencyPct > 15 ? 'bg-danger/15 text-danger-400' : m.delinquencyPct > 5 ? 'bg-warning/15 text-warning-400' : 'bg-success/15 text-success-500'}`}>
+                    Mora {fmtPct(m.delinquencyPct)}
+                  </span>
+                </div>
+                <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase text-slate-500">Cobranza</p>
+                    <p className="num text-success-500">{fmtMoney(m.collected)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-slate-500">Colocación</p>
+                    <p className="num text-slate-300">{fmtMoney(m.achievedMonthly)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-slate-500">Clientes</p>
+                    <p className="num text-slate-300">{m.portfolio}</p>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-tint/5">
+                    <div className={`h-full rounded-full ${m.effectiveness >= 75 ? 'bg-success-500' : m.effectiveness >= 50 ? 'bg-warning-400' : 'bg-danger-400'}`} style={{ width: `${m.effectiveness}%` }} />
+                  </div>
+                  <span className="text-xs text-slate-400">{fmtPct(m.effectiveness)} efectividad</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left kicker">
@@ -348,6 +405,7 @@ export function ReportesTab() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
 
@@ -366,7 +424,23 @@ export function ReportesTab() {
         {lateFees.length === 0 ? (
           <p className="py-4 text-center text-sm text-slate-500">Sin cargos por mora registrados</p>
         ) : (
-          <div className="overflow-x-auto max-h-64">
+          <>
+          {/* Tarjetas en móvil */}
+          <div className="lg:hidden max-h-72 overflow-y-auto space-y-2 pr-1">
+            {lateFees.slice(0, 20).map((f) => {
+              const client = clients.find((c) => c.id === f.clientId);
+              return (
+                <div key={f.id} className="flex items-center justify-between gap-3 rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-metal-100">{client?.fullName ?? '—'}</p>
+                    <p className="text-[11px] text-slate-500">Semana {f.weekNumber} · {fmtDate(f.appliedAt)}</p>
+                  </div>
+                  <p className="num shrink-0 text-danger-400">+{fmtMoney(f.amount)}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden lg:block overflow-x-auto max-h-64">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left kicker">
@@ -391,6 +465,7 @@ export function ReportesTab() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
 
@@ -441,7 +516,30 @@ export function ReportesTab() {
         {clients.filter((c) => c.status === 'en_mora').length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-500">Sin clientes en mora</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Tarjetas en móvil */}
+          <div className="lg:hidden space-y-2">
+            {clients.filter((c) => c.status === 'en_mora').map((c) => {
+              const clientLateFees = lateFees.filter((f) => f.clientId === c.id).reduce((a, f) => a + f.amount, 0);
+              return (
+                <div key={c.id} className="rounded-xl border border-danger/20 bg-danger/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-metal-100">{c.fullName}</p>
+                      <p className="truncate text-[11px] text-slate-500">{c.product}</p>
+                    </div>
+                    <p className="num shrink-0 text-danger-400">{fmtMoney(c.productCost * (1 - c.downPaymentPct / 100))}</p>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                    <span>Score <span className="num text-slate-300">{c.riskScore}</span></span>
+                    <span>Cargos <span className="num text-danger-400">{clientLateFees > 0 ? fmtMoney(clientLateFees) : '—'}</span></span>
+                    <span>Últ. nota {c.bitacora[0] ? fmtDate(c.bitacora[0].date) : '—'}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left kicker">
@@ -470,6 +568,7 @@ export function ReportesTab() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
     </div>

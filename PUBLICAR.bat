@@ -15,7 +15,7 @@ if exist ".git\index.lock" del /f /q ".git\index.lock" >nul 2>&1
 if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Arreglar registro de clientes: columnas faltantes, formulario no se borra al fallar, guardar ubicacion" >> "%LOG%" 2>&1
+git commit -m "Movil: tablas de Reportes y Config a tarjetas, modales tipo hoja, franja tablet, mapa mas bajo" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

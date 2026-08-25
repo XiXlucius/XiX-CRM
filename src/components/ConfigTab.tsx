@@ -224,7 +224,36 @@ export function ConfigTab() {
       {/* RBAC matrix */}
       <Card className="p-5">
         <SectionHeader title="Matriz de permisos por rol" subtitle="Visualiza qué módulos accede cada perfil" icon={<Lock size={16} />} />
-        <div className="overflow-x-auto">
+        {/* En móvil una matriz no cabe: se muestra un bloque por módulo con
+            los roles que sí tienen acceso. */}
+        <div className="lg:hidden space-y-2">
+          {NAV_ITEMS.map((item) => {
+            const allowedRoles = ROLES.filter((r) => r.permissions.includes(item.id as Permission));
+            return (
+              <div key={item.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+                <p className="font-medium text-metal-100">{item.label}</p>
+                <p className="text-[11px] text-slate-500">{item.description}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {allowedRoles.length === 0 ? (
+                    <span className="chip bg-tint/5 text-slate-500">
+                      <Lock size={11} /> Nadie
+                    </span>
+                  ) : (
+                    allowedRoles.map((r) => {
+                      const Icon = ROLE_ICONS[r.id];
+                      return (
+                        <span key={r.id} className="chip bg-success/15 text-success-500">
+                          <Icon size={11} /> {r.label}
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left kicker">

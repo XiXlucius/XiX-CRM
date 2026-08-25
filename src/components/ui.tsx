@@ -119,7 +119,7 @@ export function Modal({
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -132,12 +132,12 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-            className={`relative w-full ${sizes[size]} card max-h-[90vh] overflow-y-auto`}
+            className={`relative w-full ${sizes[size]} card max-h-[92vh] overflow-y-auto rounded-b-none sm:rounded-b-2xl sm:max-h-[90vh]`}
           >
             {/* Subtle top gradient line */}
             <div className="absolute top-0 left-6 right-6 h-px z-20 bg-gradient-to-r from-transparent via-accent-500/30 to-transparent" />
             {/* Encabezado sticky: el botón de cerrar siempre queda visible aunque el contenido sea largo */}
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-[var(--color-surface)] px-6 pt-6 pb-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-[var(--color-surface)] px-4 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
               <h3 className="font-display text-lg font-medium text-metal-100">
                 {title}
               </h3>
@@ -148,7 +148,7 @@ export function Modal({
                 <X size={18} />
               </button>
             </div>
-            <div className="px-6 pb-6">
+            <div className="px-4 pb-6 sm:px-6">
               {children}
             </div>
           </motion.div>

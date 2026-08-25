@@ -204,7 +204,7 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
           <EmptyState icon={<Users size={22} />} title="Sin clientes que coincidan" body="Ajusta el filtro o registra un nuevo cliente." />
         </Card>
       ) : view === 'grid' ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           <AnimatePresence>
             {filtered.map((c) => (
               <motion.div key={c.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2 }}>
@@ -477,7 +477,7 @@ function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client)
   return (
     <Card className="p-5">
       <SectionHeader title="Mapa de clientes" subtitle={`${clientsWithCoords.length} clientes geolocalizados`} icon={<MapPin size={16} />} />
-      <div className="relative h-[480px] rounded-xl overflow-hidden border border-tint/5 [&_.leaflet-tile-pane]:invert [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:saturate-75 [&_.leaflet-control-attribution]:!bg-ink-900/70 [&_.leaflet-control-attribution]:!text-slate-500">
+      <div className="relative h-[320px] sm:h-[400px] lg:h-[480px] rounded-xl overflow-hidden border border-tint/5 [&_.leaflet-tile-pane]:invert [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:saturate-75 [&_.leaflet-control-attribution]:!bg-ink-900/70 [&_.leaflet-control-attribution]:!text-slate-500">
         <MapContainer center={[10.475, -66.865]} zoom={11} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"

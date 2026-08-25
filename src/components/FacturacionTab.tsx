@@ -10,8 +10,9 @@ import {
   FileText,
   Banknote,
   Loader2,
+  Trash2,
 } from 'lucide-react';
-import { useStore } from '../store';
+import { useStore, useCurrentRole } from '../store';
 import type { Invoice, InvoiceStatus, Permission } from '../types';
 import { Card, SectionHeader, StatusChip, Modal, EmptyState, fmtMoney, fmtDate, fmtDateShort, DatePicker, NumberInput } from './ui';
 import { effectiveStatus } from '../lib/aging';
@@ -26,8 +27,10 @@ const STATUS_ICONS: Record<InvoiceStatus, typeof CheckCircle2> = {
 };
 
 export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId: string) => void }) {
-  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice } = useStore();
+  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice, deleteInvoice } = useStore();
   const toast = useToast();
+  const role = useCurrentRole();
+  const canDelete = role.id === 'admin';
 
   // El estado `'vencida'` no se guarda nunca en la base — se deduce de la fecha.
   // Se normaliza aquí una sola vez para que el filtro, los contadores y las
@@ -37,9 +40,14 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
     const now = new Date();
     return rawInvoices.map((i) => ({ ...i, status: effectiveStatus(i, now) }));
   }, [rawInvoices]);
-  const [filter, setFilter] = useState<InvoiceStatus | 'all'>('all');
+  // Por defecto se muestran solo las que faltan por cobrar. Al marcar una
+  // factura como pagada desaparece del cronograma, pero no se pierde: sigue
+  // disponible en el filtro "Pagadas" y en el historial del cliente.
+  const [filter, setFilter] = useState<InvoiceStatus | 'all' | 'por_cobrar'>('por_cobrar');
   const [adding, setAdding] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
 
   const handlePay = async (id: string) => {
     setPayingId(id);
@@ -53,6 +61,20 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setDeletingId(confirmDelete.id);
+    try {
+      await deleteInvoice(confirmDelete.id);
+      toast.success('Factura eliminada');
+      setConfirmDelete(null);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleSelectClient = (clientId: string) => {
     if (onSelectClient) onSelectClient(clientId);
   };
@@ -61,7 +83,9 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
     const sorted = [...invoices].sort(
       (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
     );
-    return filter === 'all' ? sorted : sorted.filter((i) => i.status === filter);
+    if (filter === 'all') return sorted;
+    if (filter === 'por_cobrar') return sorted.filter((i) => i.status !== 'pagada');
+    return sorted.filter((i) => i.status === filter);
   }, [invoices, filter]);
 
   const stats = useMemo(() => {
@@ -107,7 +131,7 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatTile icon={<CheckCircle2 size={16} />} label="Pagadas" value={`${stats.pagada}`} sub={fmtMoney(stats.collected)} color="text-success-500" />
         <StatTile icon={<Clock size={16} />} label="Pendientes" value={`${stats.pendiente}`} sub={fmtMoney(stats.outstanding)} color="text-warning-400" />
         <StatTile icon={<AlertCircle size={16} />} label="Vencidas" value={`${stats.vencida}`} sub="Requiere acción" color="text-danger-400" />
@@ -117,10 +141,11 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
       {/* Filter */}
       <div className="flex flex-wrap gap-2">
         {([
-          { id: 'all', label: 'Todas' },
-          { id: 'pagada', label: 'Pagadas' },
+          { id: 'por_cobrar', label: 'Por cobrar' },
           { id: 'pendiente', label: 'Pendientes' },
           { id: 'vencida', label: 'Vencidas' },
+          { id: 'pagada', label: 'Pagadas' },
+          { id: 'all', label: 'Todas' },
         ] as const).map((f) => (
           <button
             key={f.id}
@@ -136,9 +161,17 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
 
       {/* Planner timeline */}
       <Card className="p-5">
-        <SectionHeader title="Cronograma de cobranzas" subtitle="Agrupado por semana" icon={<Calendar size={16} />} />
+        <SectionHeader
+          title="Cronograma de cobranzas"
+          subtitle={filter === 'por_cobrar' ? 'Solo lo que falta por cobrar — agrupado por semana' : 'Agrupado por semana'}
+          icon={<Calendar size={16} />}
+        />
         {grouped.length === 0 ? (
-          <EmptyState icon={<ReceiptText size={22} />} title="Sin facturas en este filtro" />
+          <EmptyState
+            icon={<ReceiptText size={22} />}
+            title={filter === 'por_cobrar' ? 'No queda nada por cobrar' : 'Sin facturas en este filtro'}
+            body={filter === 'por_cobrar' ? 'Las facturas ya cobradas están en el filtro "Pagadas".' : undefined}
+          />
         ) : (
           <div className="space-y-4">
             {grouped.map((g) => (
@@ -150,9 +183,15 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
                   <span className="h-px flex-1 bg-tint/5" />
                   <span className="text-xs text-slate-500">{g.items.length} facturas</span>
                 </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   {g.items.map((inv) => (
-                    <InvoiceCard key={inv.id} invoice={inv} paying={payingId === inv.id} onPay={() => handlePay(inv.id)} />
+                    <InvoiceCard
+                      key={inv.id}
+                      invoice={inv}
+                      paying={payingId === inv.id}
+                      onPay={() => handlePay(inv.id)}
+                      onDelete={canDelete ? () => setConfirmDelete(inv) : undefined}
+                    />
                   ))}
                 </div>
               </div>
@@ -163,6 +202,43 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
 
       {/* Interactive cobros calendar */}
       <CobrosCalendar invoices={invoices} clients={clients} onSelectClient={handleSelectClient} />
+
+      <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Eliminar factura" size="sm">
+        {confirmDelete && (
+          <div className="space-y-4">
+            <p className="text-sm text-metal-100">
+              ¿Seguro que quieres eliminar esta factura de{' '}
+              <span className="font-medium">{confirmDelete.clientName}</span>?
+            </p>
+            <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+              <p className="num text-lg text-metal-100">{fmtMoney(confirmDelete.amount)}</p>
+              <p className="text-[11px] text-slate-500">
+                {confirmDelete.isDownPayment
+                  ? 'Inicial'
+                  : `Cuota ${confirmDelete.installmentNumber}/${confirmDelete.totalInstallments}`}{' '}
+                · vence {fmtDate(confirmDelete.dueDate)}
+              </p>
+            </div>
+            <p className="text-xs text-warning-400">
+              Esto no se puede deshacer. Si solo quieres sacarla de las cuentas por cobrar,
+              márcala como pagada en vez de eliminarla.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmDelete(null)} className="btn-ghost" disabled={!!deletingId}>
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={!!deletingId}
+                className="btn-primary bg-danger/80 hover:bg-danger disabled:opacity-50"
+              >
+                {deletingId ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Eliminar
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <InvoiceFormModal
         open={adding}
@@ -195,7 +271,7 @@ function StatTile({ icon, label, value, sub, color }: { icon: React.ReactNode; l
   );
 }
 
-function InvoiceCard({ invoice, onPay, paying }: { invoice: Invoice; onPay: () => void; paying?: boolean }) {
+function InvoiceCard({ invoice, onPay, paying, onDelete }: { invoice: Invoice; onPay: () => void; paying?: boolean; onDelete?: () => void }) {
   const Icon = STATUS_ICONS[invoice.status];
   return (
     <motion.div
@@ -226,12 +302,28 @@ function InvoiceCard({ invoice, onPay, paying }: { invoice: Invoice; onPay: () =
             </p>
           </div>
         </div>
-        <StatusChip status={invoice.status} />
+        <div className="flex items-center gap-1">
+          <StatusChip status={invoice.status} />
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              title="Eliminar factura"
+              aria-label="Eliminar factura"
+              className="grid h-6 w-6 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger-400"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
       </div>
       <div className="mt-3 flex items-end justify-between">
         <div>
           <p className="num text-lg text-metal-100">{fmtMoney(invoice.amount)}</p>
-          <p className="text-[11px] text-slate-500">Vence {fmtDateShort(invoice.dueDate)}</p>
+          <p className="text-[11px] text-slate-500">
+            {invoice.status === 'pagada' && invoice.paidDate
+              ? `Cobrada ${fmtDateShort(invoice.paidDate)}`
+              : `Vence ${fmtDateShort(invoice.dueDate)}`}
+          </p>
         </div>
         {invoice.status !== 'pagada' && (
           <button onClick={onPay} disabled={paying} className="btn-ghost px-2.5 py-1.5 text-xs disabled:opacity-50">
