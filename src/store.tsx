@@ -591,6 +591,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       employment_tenure: c.employmentTenure ?? '6m-1y',
       has_physical_id: c.hasPhysicalId ?? true,
       first_payment_date: c.firstPaymentDate ?? null,
+      latitude: c.latitude ?? null,
+      longitude: c.longitude ?? null,
     };
     const { data, error } = await supabase.from('clients').insert(row).select('*').single();
     if (error) throw error;

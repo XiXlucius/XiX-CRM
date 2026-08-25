@@ -264,13 +264,11 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
         settings={settings}
         team={team}
         onSave={async (data) => {
-          try {
-            await addClient(data);
-            toast.success('Cliente guardado');
-            setFormOpen(false);
-          } catch (err) {
-            toast.error(friendlyError(err));
-          }
+          // Si falla, el error sube al formulario: el modal se queda abierto
+          // con los datos intactos y él muestra el aviso.
+          await addClient(data);
+          toast.success('Cliente guardado');
+          setFormOpen(false);
         }}
       />
 
@@ -525,10 +523,12 @@ function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client)
 function ClientFormModal({ open, onClose, onSave, settings, team }: {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Client, 'id' | 'createdAt' | 'bitacora'>) => void;
+  onSave: (data: Omit<Client, 'id' | 'createdAt' | 'bitacora'>) => void | Promise<void>;
   settings: BusinessSettings;
   team: TeamMember[];
 }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     fullName: '', cedula: '', phone: '', email: '',
     municipality: 'chacao' as Municipality, address: '', product: '',
@@ -551,23 +551,38 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
 
   const effectiveTerm = termMonths + extraWeeks / 4.345;
 
-  const submit = () => {
-    if (!form.fullName || !form.cedula) return;
+  const submit = async () => {
+    if (saving) return;
+    if (!form.fullName || !form.cedula) {
+      toast.error('El nombre y la cédula son obligatorios.');
+      return;
+    }
     const lat = form.latitude ? parseFloat(form.latitude) : null;
     const lng = form.longitude ? parseFloat(form.longitude) : null;
-    onSave({
-      ...form,
-      termMonths: effectiveTerm,
-      firstPaymentDate: form.firstPaymentDate || null,
-      riskScore: 0,
-      latitude: lat,
-      longitude: lng,
-    } as Omit<Client, 'id' | 'createdAt' | 'bitacora'>);
-    setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'prospecto', assignedAgent: 'Administrador', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
-    setEqualInstallments(false);
-    setNumInstallments(12);
-    setTermMonths(12);
-    setExtraWeeks(0);
+
+    setSaving(true);
+    try {
+      await onSave({
+        ...form,
+        termMonths: effectiveTerm,
+        firstPaymentDate: form.firstPaymentDate || null,
+        riskScore: 0,
+        latitude: lat,
+        longitude: lng,
+      } as Omit<Client, 'id' | 'createdAt' | 'bitacora'>);
+
+      // Solo se limpia si el guardado salió bien. Si falla, los datos
+      // se quedan tal cual para no tener que llenar todo de nuevo.
+      setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'prospecto', assignedAgent: 'Administrador', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
+      setEqualInstallments(false);
+      setNumInstallments(12);
+      setTermMonths(12);
+      setExtraWeeks(0);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -727,8 +742,11 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="btn-ghost">Cancelar</button>
-          <button onClick={submit} className="btn-primary"><UserPlus size={15} /> Registrar cliente</button>
+          <button onClick={onClose} className="btn-ghost" disabled={saving}>Cancelar</button>
+          <button onClick={submit} className="btn-primary" disabled={saving}>
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
+            {saving ? 'Guardando…' : 'Registrar cliente'}
+          </button>
         </div>
       </div>
     </Modal>
