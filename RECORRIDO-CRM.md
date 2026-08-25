@@ -19,6 +19,34 @@ fallos no se ven en pantalla pero sí ahí.
 
 ---
 
+## 0-B. Desde el teléfono
+
+El CRM ya está en línea: **https://xixnewcrm.vercel.app** — ábrelo en el
+teléfono, no hace falta instalar nada.
+
+Qué debería pasar:
+
+- [ ] El menú lateral **no ocupa espacio**: se abre con el botón de las tres
+      rayas, arriba a la izquierda. Se cierra al elegir una sección, al tocar
+      fuera, o con la tecla Escape.
+- [ ] **Ninguna pantalla se desplaza de lado.** Si tienes que arrastrar
+      horizontalmente para leer algo, eso es un fallo — anótalo.
+- [ ] Las **tablas** (CRM, Equipo, Reportes, Configuración, Auditoría) no se
+      ven como tablas en el teléfono: se convierten en tarjetas apiladas con
+      la misma información y las mismas acciones.
+- [ ] Los **formularios y ventanas** suben desde abajo, como una hoja, y el
+      botón de cerrar (la X) queda siempre visible aunque el contenido sea largo.
+- [ ] En el **calendario de cobros** cada día muestra solo los números, sin las
+      palabras "Mora" y "Cobros" — es a propósito, no caben en un teléfono.
+- [ ] En la **tabla de amortización** solo se ven Nº, Cuota y Saldo. Capital e
+      interés aparecen a partir de tablet; el desglose es informativo.
+
+**Probado y verificado:** a 375 px (iPhone SE), 768 px (iPad vertical) y
+1440 px no hay desplazamiento horizontal en ninguna. El diseño de escritorio
+quedó igual que antes.
+
+---
+
 ## 0-A. La mora (lo más nuevo) — prueba esto de primero
 
 Hasta ahora **nada marcaba la mora**. El estado "vencida" existía pero no se
