@@ -135,6 +135,10 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
       ctx = canvas.getContext('2d');
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
       seed();
+      // Cambiar el tamaño del lienzo lo deja en blanco. Con movimiento reducido
+      // el bucle ya se canceló, así que hay que pedir un fotograma nuevo a mano
+      // o el campo se queda vacío para siempre.
+      if (reduced) raf = requestAnimationFrame(draw);
     };
 
     const draw = () => {
@@ -236,9 +240,16 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
     };
     const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
 
+    // Si la pestaña arranca en segundo plano, `draw` se sale antes de pintar y
+    // en modo reducido el bucle ya no vuelve. Se repinta al hacerse visible.
+    const onVisible = () => {
+      if (!document.hidden && reduced) raf = requestAnimationFrame(draw);
+    };
+
     size();
     raf = requestAnimationFrame(draw);
     window.addEventListener('resize', onResize);
+    document.addEventListener('visibilitychange', onVisible);
 
     // En modo contenido, la barra lateral cambia de ancho al colapsarse — eso es
     // una transición CSS, no un resize de ventana, así que hace falta observar
@@ -260,6 +271,7 @@ export function ParticleField({ variant = 'app', ...overrides }: Props) {
       clearTimeout(resizeTimer);
       ro?.disconnect();
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('blur', onLeave);

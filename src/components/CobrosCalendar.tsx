@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, AlertTriangle, CalendarClock, X, ArrowRight,
 import type { Invoice, Client } from '../types';
 import { Card, fmtMoney } from './ui';
 import { isOverdue } from '../lib/aging';
+import { formatMoney } from '../lib/currency';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MONTHS = [
@@ -26,9 +27,18 @@ interface CobrosCalendarProps {
   invoices: Invoice[];
   clients: Client[];
   onSelectClient: (clientId: string) => void;
+  /** Acciones sobre la cuota. Si no se pasan, el calendario queda de solo lectura
+   *  (así lo usa Ruta de cobro, que no cobra desde aquí). */
+  payingId?: string | null;
+  onPay?: (invoiceId: string) => void;
+  onDelete?: (invoice: Invoice) => void;
+  onChangeDate?: (invoice: Invoice) => void;
 }
 
-export function CobrosCalendar({ invoices, clients, onSelectClient }: CobrosCalendarProps) {
+export function CobrosCalendar({
+  invoices, clients, onSelectClient,
+  payingId, onPay, onDelete, onChangeDate,
+}: CobrosCalendarProps) {
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDay, setSelectedDay] = useState<DayCobros | null>(null);
@@ -39,18 +49,18 @@ export function CobrosCalendar({ invoices, clients, onSelectClient }: CobrosCale
     return m;
   }, [clients]);
 
-  // Build a map of dateKey -> invoices due that day (only pending/overdue)
+  // Mapa fecha -> cuotas que vencen ese día. No se filtra nada aquí: quien
+  // llama decide qué mandar (Facturación pasa lo que marque el filtro), así el
+  // filtro "Pagadas" también se puede ver en el calendario.
   const byDay = useMemo(() => {
     const map = new Map<string, { invoice: Invoice; client: Client | undefined }[]>();
-    invoices
-      .filter((i) => i.status !== 'pagada')
-      .forEach((inv) => {
-        const d = new Date(inv.dueDate);
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        const arr = map.get(key) ?? [];
-        arr.push({ invoice: inv, client: clientMap.get(inv.clientId) });
-        map.set(key, arr);
-      });
+    invoices.forEach((inv) => {
+      const d = new Date(inv.dueDate);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const arr = map.get(key) ?? [];
+      arr.push({ invoice: inv, client: clientMap.get(inv.clientId) });
+      map.set(key, arr);
+    });
     return map;
   }, [invoices, clientMap]);
 
@@ -156,7 +166,15 @@ export function CobrosCalendar({ invoices, clients, onSelectClient }: CobrosCale
       </Card>
 
       {/* Day detail popover/modal */}
-      <DayDetailModal day={selectedDay} onClose={() => setSelectedDay(null)} onSelectClient={onSelectClient} />
+      <DayDetailModal
+        day={selectedDay}
+        onClose={() => setSelectedDay(null)}
+        onSelectClient={onSelectClient}
+        payingId={payingId}
+        onPay={onPay}
+        onDelete={onDelete}
+        onChangeDate={onChangeDate}
+      />
     </div>
   );
 }
@@ -244,11 +262,20 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
 
 // ---------- Day detail modal ----------
 
-function DayDetailModal({ day, onClose, onSelectClient }: {
+function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelete, onChangeDate }: {
   day: DayCobros | null;
   onClose: () => void;
   onSelectClient: (clientId: string) => void;
+  payingId?: string | null;
+  onPay?: (invoiceId: string) => void;
+  onDelete?: (invoice: Invoice) => void;
+  onChangeDate?: (invoice: Invoice) => void;
 }) {
+  // La tarjeta de la cuota sale al tocar el nombre del cliente, no antes.
+  const [detalle, setDetalle] = useState<{ invoice: Invoice; client: Client | undefined } | null>(null);
+
+  useEffect(() => { setDetalle(null); }, [day]);
+
   if (!day) return null;
   const dateLabel = day.date.toLocaleDateString('es-VE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -265,60 +292,81 @@ function DayDetailModal({ day, onClose, onSelectClient }: {
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-tint/5">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300">
-                <CalendarClock size={18} />
-              </div>
-              <div>
-                <p className="font-display text-base font-medium text-metal-100 capitalize">{dateLabel}</p>
-                <p className="text-xs text-slate-500">{day.total} cobros · {fmtMoney(day.total)}</p>
+            <div className="flex min-w-0 items-center gap-3">
+              {detalle ? (
+                <button
+                  onClick={() => setDetalle(null)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300 transition-colors hover:text-metal-100"
+                  aria-label="Volver al día"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              ) : (
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300">
+                  <CalendarClock size={18} />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate font-display text-base font-medium text-metal-100 capitalize">
+                  {detalle ? detalle.invoice.clientName : dateLabel}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  {detalle ? dateLabel : `${day.total} cobros · ${fmtMoney(day.total)}`}
+                </p>
               </div>
             </div>
-            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-tint/5 hover:text-metal-100 transition-colors">
+            <button onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-tint/5 hover:text-metal-100 transition-colors">
               <X size={16} />
             </button>
           </div>
 
-          {/* Sections */}
-          <div className="flex-1 overflow-y-auto divide-y divide-tint/5">
-            {/* Morosidad */}
-            <DaySection
-              title="Cobros de Morosidad"
-              icon={<AlertTriangle size={14} />}
-              count={day.morosidad.length}
-              total={day.totalMorosidad}
-              accent="danger"
-              items={day.morosidad}
-              onSelectClient={onSelectClient}
-              onClose={onClose}
+          {detalle ? (
+            <InvoiceDetail
+              invoice={detalle.invoice}
+              paying={payingId === detalle.invoice.id}
+              onPay={onPay ? () => onPay(detalle.invoice.id) : undefined}
+              onDelete={onDelete ? () => { onDelete(detalle.invoice); onClose(); } : undefined}
+              onChangeDate={onChangeDate ? () => { onChangeDate(detalle.invoice); onClose(); } : undefined}
+              onOpenClient={() => {
+                if (detalle.invoice.clientId) { onSelectClient(detalle.invoice.clientId); onClose(); }
+              }}
             />
-            {/* Regulares */}
-            <DaySection
-              title="Cobros Regulares"
-              icon={<CalendarClock size={14} />}
-              count={day.regulares.length}
-              total={day.totalRegulares}
-              accent="accent"
-              items={day.regulares}
-              onSelectClient={onSelectClient}
-              onClose={onClose}
-            />
-          </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto divide-y divide-tint/5">
+              <DaySection
+                title="Cobros de Morosidad"
+                icon={<AlertTriangle size={14} />}
+                count={day.morosidad.length}
+                total={day.totalMorosidad}
+                accent="danger"
+                items={day.morosidad}
+                onPick={setDetalle}
+              />
+              <DaySection
+                title="Cobros Regulares"
+                icon={<CalendarClock size={14} />}
+                count={day.regulares.length}
+                total={day.totalRegulares}
+                accent="accent"
+                items={day.regulares}
+                onPick={setDetalle}
+              />
+            </div>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>
   );
 }
 
-function DaySection({ title, icon, count, total, accent, items, onSelectClient, onClose }: {
+function DaySection({ title, icon, count, total, accent, items, onPick }: {
   title: string;
   icon: React.ReactNode;
   count: number;
   total: number;
   accent: 'danger' | 'accent';
   items: { invoice: Invoice; client: Client | undefined }[];
-  onSelectClient: (clientId: string) => void;
-  onClose: () => void;
+  onPick: (item: { invoice: Invoice; client: Client | undefined }) => void;
 }) {
   const headerColor = accent === 'danger' ? 'text-danger-400' : 'text-accent-300';
   const badgeBg = accent === 'danger' ? 'bg-danger/15 text-danger-400' : 'bg-accent-500/15 text-accent-300';
@@ -343,12 +391,7 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
           {items.map(({ invoice, client }) => (
             <button
               key={invoice.id}
-              onClick={() => {
-                if (invoice.clientId) {
-                  onSelectClient(invoice.clientId);
-                  onClose();
-                }
-              }}
+              onClick={() => onPick({ invoice, client })}
               className="group flex w-full items-center justify-between rounded-lg border border-tint/5 bg-ink-900/40 px-3 py-2.5 text-left transition-colors hover:border-accent-500/30 hover:bg-ink-900/70"
             >
               <div className="flex items-center gap-2.5 min-w-0">
@@ -375,6 +418,66 @@ function DaySection({ title, icon, count, total, accent, items, onSelectClient, 
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Tarjeta de una cuota: sale al tocar el nombre del cliente dentro de un día.
+ *  Las acciones que no se pasan simplemente no se dibujan (borrar y cambiar
+ *  fecha son solo del administrador). */
+function InvoiceDetail({ invoice, paying, onPay, onDelete, onChangeDate, onOpenClient }: {
+  invoice: Invoice;
+  paying?: boolean;
+  onPay?: () => void;
+  onDelete?: () => void;
+  onChangeDate?: () => void;
+  onOpenClient: () => void;
+}) {
+  const vencida = isOverdue(invoice);
+  const pagada = invoice.status === 'pagada';
+
+  return (
+    <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <div className={`rounded-xl border p-4 ${
+        vencida ? 'border-danger/30 bg-danger/5'
+        : pagada ? 'border-success-500/20 bg-success/5'
+        : 'border-tint/5 bg-ink-900/40'
+      }`}>
+        <p className="num text-2xl text-metal-100">{fmtMoney(invoice.amount)}</p>
+        <p className="mt-0.5 text-sm text-slate-400">
+          {invoice.isDownPayment
+            ? 'Inicial'
+            : `Cuota ${invoice.installmentNumber} de ${invoice.totalInstallments}`}
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
+          {pagada && invoice.paidDate
+            ? `Cobrada el ${new Date(invoice.paidDate).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })}`
+            : `Vence el ${new Date(invoice.dueDate).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          {vencida && <span className="ml-1.5 font-medium text-danger-400">· vencida</span>}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {!pagada && onPay && (
+          <button onClick={onPay} disabled={paying} className="btn-primary disabled:opacity-50">
+            {paying ? <CircleDot size={15} className="animate-spin" /> : <CalendarClock size={15} />}
+            Marcar pagada
+          </button>
+        )}
+        {onChangeDate && (
+          <button onClick={onChangeDate} className="btn-ghost">
+            <CalendarClock size={15} /> Cambiar fecha
+          </button>
+        )}
+        <button onClick={onOpenClient} className="btn-ghost">
+          <ArrowRight size={15} /> Ver cliente
+        </button>
+        {onDelete && (
+          <button onClick={onDelete} className="btn-ghost text-danger-400 hover:bg-danger/10">
+            <X size={15} /> Eliminar
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -413,6 +516,6 @@ function buildDay(date: Date, isCurrentMonth: boolean, byDay: Map<string, { invo
 }
 
 function fmtMoneyCompact(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${n.toFixed(0)}`;
+  // Respeta la moneda elegida arriba, igual que fmtMoney.
+  return formatMoney(n, { compact: true });
 }

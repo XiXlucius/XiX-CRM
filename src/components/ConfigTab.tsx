@@ -20,6 +20,7 @@ import {
   AlertCircle,
   RefreshCw,
   Server,
+  Coins,
 } from 'lucide-react';
 import { useStore, useCurrentRole } from '../store';
 import { ROLES, NAV_ITEMS } from '../data';
@@ -28,6 +29,7 @@ import type { Permission, Role } from '../types';
 import type { BusinessSettings } from '../lib/scoring';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
+import { useCurrency } from '../context/CurrencyContext';
 
 const ROLE_ICONS: Record<Role, typeof ShieldCheck> = {
   nuevo: User,
@@ -148,6 +150,8 @@ export function ConfigTab() {
           {saving ? <><RefreshCw size={15} className="animate-spin" /> Guardando...</> : saved ? <><Check size={15} /> Guardado</> : <><Save size={15} /> Guardar parámetros</>}
         </button>
       </div>
+
+      <TasaBcvCard />
 
       {/* Backups */}
       <Card className="p-4 sm:p-5">
@@ -332,6 +336,90 @@ export function ConfigTab() {
         </p>
       </Card>
     </div>
+  );
+}
+
+/** Tasa del BCV: se lee sola una vez al día, pero si su página cambia o se
+ *  cae, aquí se puede escribir a mano para no quedarse sin poder ver Bs. */
+function TasaBcvCard() {
+  const { rates, loading, refreshRate, saveManualRate } = useCurrency();
+  const toast = useToast();
+  const [usd, setUsd] = useState(0);
+  const [eur, setEur] = useState(0);
+
+  useEffect(() => {
+    setUsd(rates.usdToVes ?? 0);
+    setEur(rates.eurToVes ?? 0);
+  }, [rates.usdToVes, rates.eurToVes]);
+
+  const leerBcv = async () => {
+    try {
+      await refreshRate();
+      toast.success('Tasa leída del BCV');
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
+  };
+
+  const guardarManual = async () => {
+    if (usd <= 0) { toast.error('La tasa del dólar debe ser mayor que cero.'); return; }
+    try {
+      await saveManualRate(usd, eur > 0 ? eur : null);
+      toast.success('Tasa guardada a mano');
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
+  };
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <SectionHeader
+        title="Tasa de cambio (BCV)"
+        subtitle="Para ver los montos en bolívares y euros. La deuda sigue siendo en dólares."
+        icon={<Coins size={16} />}
+      />
+
+      <div className="mb-4 rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+        {rates.usdToVes ? (
+          <>
+            <p className="num text-lg text-metal-100">
+              1 USD = {rates.usdToVes.toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs
+            </p>
+            {rates.eurToVes && (
+              <p className="num text-sm text-slate-300">
+                1 EUR = {rates.eurToVes.toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs
+              </p>
+            )}
+            <p className="mt-1 text-[11px] text-slate-500">
+              {rates.source === 'manual' ? 'Cargada a mano' : 'Leída del BCV'} · {rates.rateDate}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-warning-400">
+            Todavía no hay ninguna tasa cargada. Los montos se muestran en dólares.
+          </p>
+        )}
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <NumberField label="Bolívares por dólar" value={usd} onChange={setUsd} />
+        <NumberField label="Bolívares por euro (opcional)" value={eur} onChange={setEur} />
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button onClick={leerBcv} disabled={loading} className="btn-ghost">
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Leer del BCV
+        </button>
+        <button onClick={guardarManual} disabled={loading} className="btn-primary">
+          <Save size={15} /> Guardar tasa a mano
+        </button>
+      </div>
+
+      <p className="mt-3 text-xs text-slate-500">
+        El euro solo se puede mostrar si están cargadas las dos tasas: el CRM lo
+        calcula cruzando por el bolívar, que es lo que publica el BCV.
+      </p>
+    </Card>
   );
 }
 

@@ -2,6 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, CalendarDays } from 'lucide-react';
+import { formatMoney, fromUsd, toUsd } from '../lib/currency';
+import { useCurrency } from '../context/CurrencyContext';
 
 // ---------- Status helpers ----------
 
@@ -182,8 +184,9 @@ export function EmptyState({
 
 // ---------- Formatters ----------
 
-export const fmtMoney = (n: number) =>
-  '$' + n.toLocaleString('es-VE', { maximumFractionDigits: 2 });
+/** Los montos se guardan siempre en dólares; esto los muestra en la moneda
+ *  que el usuario haya elegido arriba (USD, EUR o Bs). Ver src/lib/currency.ts. */
+export const fmtMoney = (n: number) => formatMoney(n);
 
 export const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
@@ -194,6 +197,72 @@ export const fmtPct = (n: number) => `${n.toFixed(1)}%`;
  * a number once a real digit is typed, so deleting every digit leaves
  * the field empty instead of snapping to 0.
  */
+/**
+ * Campo de dinero con selector de moneda de entrada.
+ *
+ * Importante: `value` y `onChange` SIEMPRE hablan en dólares. Si el usuario
+ * elige euros, escribe en euros pero lo que sale hacia afuera ya viene
+ * convertido a dólares, que es como se guarda la deuda.
+ */
+export function MoneyInput({
+  valueUsd,
+  onChangeUsd,
+  min = 0,
+  disabled,
+}: {
+  valueUsd: number;
+  onChangeUsd: (usd: number) => void;
+  min?: number;
+  disabled?: boolean;
+}) {
+  const { rates } = useCurrency();
+  const [entryCur, setEntryCur] = useState<'USD' | 'EUR'>('USD');
+
+  const eurDisponible = !!(rates.usdToVes && rates.eurToVes);
+  // Si se pierde la tasa, no dejamos el campo en euros sin poder convertir.
+  const curEfectiva = entryCur === 'EUR' && !eurDisponible ? 'USD' : entryCur;
+
+  const mostrado = curEfectiva === 'USD'
+    ? valueUsd
+    : (fromUsd(valueUsd, 'EUR', rates) ?? valueUsd);
+
+  const escribir = (n: number) => {
+    if (curEfectiva === 'USD') { onChangeUsd(n); return; }
+    const usd = toUsd(n, 'EUR', rates);
+    if (usd !== null) onChangeUsd(usd);
+  };
+
+  const enBs = fromUsd(valueUsd, 'VES', rates);
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <NumberInput value={mostrado} onChange={escribir} min={min} step={1} />
+        </div>
+        <select
+          value={curEfectiva}
+          disabled={disabled}
+          onChange={(e) => setEntryCur(e.target.value as 'USD' | 'EUR')}
+          className="input w-auto shrink-0"
+          title="Moneda en la que escribes el precio"
+        >
+          <option value="USD">$ USD</option>
+          <option value="EUR" disabled={!eurDisponible}>€ EUR</option>
+        </select>
+      </div>
+      <p className="mt-1 text-[11px] text-slate-500">
+        {curEfectiva === 'EUR' && (
+          <span className="text-accent-300">Se guarda como ${valueUsd.toLocaleString('es-VE', { maximumFractionDigits: 2 })} · </span>
+        )}
+        {enBs !== null
+          ? <>≈ Bs {enBs.toLocaleString('es-VE', { maximumFractionDigits: 0 })}</>
+          : 'Sin tasa del BCV cargada'}
+      </p>
+    </div>
+  );
+}
+
 export function NumberInput({
   value,
   onChange,

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   ReceiptText,
   Calendar,
@@ -14,20 +13,14 @@ import {
 } from 'lucide-react';
 import { useStore, useCurrentRole } from '../store';
 import type { Invoice, InvoiceStatus, Permission } from '../types';
-import { Card, SectionHeader, StatusChip, Modal, EmptyState, fmtMoney, fmtDate, fmtDateShort, DatePicker, NumberInput } from './ui';
+import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtDate, DatePicker, NumberInput } from './ui';
 import { effectiveStatus } from '../lib/aging';
 import { CobrosCalendar } from './CobrosCalendar';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 
-const STATUS_ICONS: Record<InvoiceStatus, typeof CheckCircle2> = {
-  pagada: CheckCircle2,
-  pendiente: Clock,
-  vencida: AlertCircle,
-};
-
 export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId: string) => void }) {
-  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice, deleteInvoice } = useStore();
+  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice, deleteInvoice, updateInvoiceDueDate } = useStore();
   const toast = useToast();
   const role = useCurrentRole();
   const canDelete = role.id === 'admin';
@@ -48,6 +41,9 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
   const [payingId, setPayingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
+  const [dateEdit, setDateEdit] = useState<Invoice | null>(null);
+  const [newDate, setNewDate] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
 
   const handlePay = async (id: string) => {
     setPayingId(id);
@@ -79,6 +75,29 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
     if (onSelectClient) onSelectClient(clientId);
   };
 
+  // El DatePicker trabaja con 'YYYY-MM-DD'; la base guarda ISO completo.
+  const openDateEdit = (inv: Invoice) => {
+    setNewDate(inv.dueDate.slice(0, 10));
+    setDateEdit(inv);
+  };
+
+  const handleSaveDate = async () => {
+    if (!dateEdit || !newDate) return;
+    setSavingDate(true);
+    try {
+      // Se ancla a mediodía local para que ningún huso horario la corra un día.
+      const [y, m, d] = newDate.split('-').map(Number);
+      const iso = new Date(y, m - 1, d, 12, 0, 0).toISOString();
+      await updateInvoiceDueDate(dateEdit.id, iso);
+      toast.success('Fecha de cobro actualizada');
+      setDateEdit(null);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const sorted = [...invoices].sort(
       (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
@@ -99,23 +118,41 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
     };
   }, [invoices]);
 
-  // Group by week for the planner
-  const grouped = useMemo(() => {
-    const groups: { label: string; items: Invoice[] }[] = [];
-    const sorted = [...filtered].sort(
-      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
-    );
-    sorted.forEach((inv) => {
-      const d = new Date(inv.dueDate);
-      const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay());
-      const label = weekStart.toLocaleDateString('es-VE', { day: '2-digit', month: 'short' });
-      const g = groups.find((g) => g.label === label);
-      if (g) g.items.push(inv);
-      else groups.push({ label, items: [inv] });
+  // Progreso por cliente: cuántas cuotas se le asignaron, cuántas lleva pagadas
+  // y cuánto le falta. Es el "¿dónde queda cada cuota?" de un vistazo, sin
+  // tener que abrir a cada persona.
+  const porCliente = useMemo(() => {
+    const map = new Map<string, {
+      clientId: string; nombre: string;
+      cuotas: typeof invoices; pagadas: number; total: number;
+      saldo: number; vencidas: number; proxima: string | null;
+    }>();
+    for (const inv of invoices) {
+      const key = inv.clientId || inv.clientName;
+      let e = map.get(key);
+      if (!e) {
+        e = { clientId: inv.clientId, nombre: inv.clientName, cuotas: [], pagadas: 0, total: 0, saldo: 0, vencidas: 0, proxima: null };
+        map.set(key, e);
+      }
+      e.cuotas.push(inv);
+    }
+    for (const e of map.values()) {
+      // La inicial no cuenta como cuota del plan: se muestra aparte.
+      const plan = e.cuotas.filter((i) => !i.isDownPayment);
+      e.total = plan.length ? Math.max(...plan.map((i) => i.totalInstallments)) : e.cuotas.length;
+      e.pagadas = e.cuotas.filter((i) => i.status === 'pagada').length;
+      e.saldo = e.cuotas.filter((i) => i.status !== 'pagada').reduce((a, i) => a + i.amount, 0);
+      e.vencidas = e.cuotas.filter((i) => i.status === 'vencida').length;
+      const pend = e.cuotas
+        .filter((i) => i.status !== 'pagada')
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      e.proxima = pend[0]?.dueDate ?? null;
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.vencidas !== b.vencidas) return b.vencidas - a.vencidas; // morosos primero
+      return b.saldo - a.saldo;
     });
-    return groups;
-  }, [filtered]);
+  }, [invoices]);
 
   return (
     <div data-tour="facturacion" className="space-y-5">
@@ -159,49 +196,113 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
         ))}
       </div>
 
-      {/* Planner timeline */}
+      {/* Progreso de cuotas por cliente */}
       <Card className="p-4 sm:p-5">
         <SectionHeader
-          title="Cronograma de cobranzas"
-          subtitle={filter === 'por_cobrar' ? 'Solo lo que falta por cobrar — agrupado por semana' : 'Agrupado por semana'}
+          title="Cuotas por cliente"
+          subtitle="Cuántas se asignaron, cuántas van pagadas y cuánto falta"
           icon={<Calendar size={16} />}
         />
-        {grouped.length === 0 ? (
+        {porCliente.length === 0 ? (
           <EmptyState
             icon={<ReceiptText size={22} />}
-            title={filter === 'por_cobrar' ? 'No queda nada por cobrar' : 'Sin facturas en este filtro'}
-            body={filter === 'por_cobrar' ? 'Las facturas ya cobradas están en el filtro "Pagadas".' : undefined}
+            title="Todavía no hay cuotas"
+            body="Al registrar un cliente su plan de pagos se crea solo y aparece aquí."
           />
         ) : (
-          <div className="space-y-4">
-            {grouped.map((g) => (
-              <div key={g.label}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-accent-300">
-                    Semana del {g.label}
-                  </span>
-                  <span className="h-px flex-1 bg-tint/5" />
-                  <span className="text-xs text-slate-500">{g.items.length} facturas</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {g.items.map((inv) => (
-                    <InvoiceCard
-                      key={inv.id}
-                      invoice={inv}
-                      paying={payingId === inv.id}
-                      onPay={() => handlePay(inv.id)}
-                      onDelete={canDelete ? () => setConfirmDelete(inv) : undefined}
+          <div className="space-y-2">
+            {porCliente.map((c) => {
+              const pct = c.total > 0 ? Math.min(100, (c.pagadas / c.total) * 100) : 0;
+              const saldado = c.saldo <= 0;
+              return (
+                <button
+                  key={c.clientId || c.nombre}
+                  onClick={() => c.clientId && handleSelectClient(c.clientId)}
+                  className="group w-full rounded-xl border border-tint/5 bg-ink-900/40 p-3 text-left transition-colors hover:border-accent-500/30 hover:bg-ink-900/70"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-metal-100 group-hover:text-accent-200 transition-colors">
+                        {c.nombre}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {c.pagadas} de {c.total} {c.total === 1 ? 'cuota' : 'cuotas'} pagadas
+                        {c.vencidas > 0 && (
+                          <span className="ml-1.5 text-danger-400">· {c.vencidas} vencida{c.vencidas > 1 ? 's' : ''}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className={`num ${saldado ? 'text-success-500' : 'text-metal-100'}`}>
+                        {saldado ? 'Saldado' : fmtMoney(c.saldo)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {saldado ? 'sin deuda' : 'por cobrar'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-tint/5">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        c.vencidas > 0 ? 'bg-danger-400' : saldado ? 'bg-success-500' : 'bg-accent-500'
+                      }`}
+                      style={{ width: `${pct}%` }}
                     />
-                  ))}
-                </div>
-              </div>
-            ))}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </Card>
 
-      {/* Interactive cobros calendar */}
-      <CobrosCalendar invoices={invoices} clients={clients} onSelectClient={handleSelectClient} />
+      {/* Calendario: aquí se ven los días de cobro. Al tocar un día salen los
+          clientes, y al tocar un cliente sale su tarjeta con las acciones. */}
+      <CobrosCalendar
+        invoices={filtered}
+        clients={clients}
+        onSelectClient={handleSelectClient}
+        payingId={payingId}
+        onPay={handlePay}
+        onDelete={canDelete ? (inv) => setConfirmDelete(inv) : undefined}
+        onChangeDate={canDelete ? openDateEdit : undefined}
+      />
+
+      <Modal open={!!dateEdit} onClose={() => setDateEdit(null)} title="Cambiar fecha de cobro" size="sm">
+        {dateEdit && (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+              <p className="font-medium text-metal-100">{dateEdit.clientName}</p>
+              <p className="text-[11px] text-slate-500">
+                {dateEdit.isDownPayment
+                  ? 'Inicial'
+                  : `Cuota ${dateEdit.installmentNumber}/${dateEdit.totalInstallments}`}{' '}
+                · {fmtMoney(dateEdit.amount)}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Vence actualmente el {fmtDate(dateEdit.dueDate)}
+              </p>
+            </div>
+            <div>
+              <label className="label">Nueva fecha de cobro</label>
+              <DatePicker value={newDate} onChange={setNewDate} />
+            </div>
+            <p className="text-xs text-warning-400">
+              Mover la fecha cambia cuándo esta cuota entra en mora. El cambio queda
+              registrado en Auditoría con la fecha anterior.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDateEdit(null)} className="btn-ghost" disabled={savingDate}>
+                Cancelar
+              </button>
+              <button onClick={handleSaveDate} className="btn-primary" disabled={savingDate || !newDate}>
+                {savingDate ? <Loader2 size={15} className="animate-spin" /> : <Calendar size={15} />}
+                Guardar fecha
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Eliminar factura" size="sm">
         {confirmDelete && (
@@ -268,70 +369,6 @@ function StatTile({ icon, label, value, sub, color }: { icon: React.ReactNode; l
       <p className="mt-1.5 font-display text-xl font-medium text-metal-100">{value}</p>
       <p className="mt-0.5 text-[11px] text-slate-500">{sub}</p>
     </Card>
-  );
-}
-
-function InvoiceCard({ invoice, onPay, paying, onDelete }: { invoice: Invoice; onPay: () => void; paying?: boolean; onDelete?: () => void }) {
-  const Icon = STATUS_ICONS[invoice.status];
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`rounded-xl border p-3 ${
-        invoice.status === 'vencida'
-          ? 'border-danger/30 bg-danger/5'
-          : invoice.status === 'pagada'
-          ? 'border-success-500/20 bg-success/5'
-          : 'border-tint/5 bg-ink-900/40'
-      }`}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`grid h-8 w-8 place-items-center rounded-lg ${
-            invoice.status === 'pagada' ? 'bg-success/15 text-success-500' :
-            invoice.status === 'vencida' ? 'bg-danger/15 text-danger-400' :
-            'bg-warning/15 text-warning-400'
-          }`}>
-            <Icon size={15} />
-          </span>
-          <div>
-            <p className="text-sm font-medium text-metal-100">{invoice.clientName}</p>
-            <p className="text-[11px] text-slate-500">
-              {invoice.isDownPayment ? 'Inicial' : `Cuota ${invoice.installmentNumber}/${invoice.totalInstallments}`}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <StatusChip status={invoice.status} />
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              title="Eliminar factura"
-              aria-label="Eliminar factura"
-              className="grid h-6 w-6 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger-400"
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="mt-3 flex items-end justify-between">
-        <div>
-          <p className="num text-lg text-metal-100">{fmtMoney(invoice.amount)}</p>
-          <p className="text-[11px] text-slate-500">
-            {invoice.status === 'pagada' && invoice.paidDate
-              ? `Cobrada ${fmtDateShort(invoice.paidDate)}`
-              : `Vence ${fmtDateShort(invoice.dueDate)}`}
-          </p>
-        </div>
-        {invoice.status !== 'pagada' && (
-          <button onClick={onPay} disabled={paying} className="btn-ghost px-2.5 py-1.5 text-xs disabled:opacity-50">
-            {paying ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Marcar pagada
-          </button>
-        )}
-      </div>
-    </motion.div>
   );
 }
 

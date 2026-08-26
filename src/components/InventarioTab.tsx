@@ -25,7 +25,7 @@ import {
 } from 'recharts';
 import { useStore } from '../store';
 import type { Product } from '../types';
-import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtPct, NumberInput } from './ui';
+import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtPct, NumberInput, MoneyInput } from './ui';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 
@@ -388,8 +388,8 @@ function ProductModal({
             <input className="input" value={form.category} onChange={(e) => set('category', e.target.value)} />
           </div>
           <div>
-            <label className="label">Precio base ($)</label>
-            <NumberInput value={form.basePrice} onChange={(v) => set('basePrice', v)} min={0} />
+            <label className="label">Precio base</label>
+            <MoneyInput valueUsd={form.basePrice} onChangeUsd={(v) => set('basePrice', v)} min={0} />
           </div>
           <div>
             <label className="label">IVA (%)</label>

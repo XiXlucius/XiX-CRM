@@ -42,6 +42,7 @@ import {
   fmtDate,
   fmtDateShort,
   NumberInput,
+  MoneyInput,
   DatePicker,
 } from './ui';
 import { AmortizationCalculator } from './AmortizationCalculator';
@@ -660,11 +661,11 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Datos del crédito</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <div><label className="label">Producto</label><input className="input" value={form.product} onChange={(e) => set('product', e.target.value)} /></div>
-            <div><label className="label">Costo ($)</label><NumberInput value={form.productCost} onChange={(v) => set('productCost', v)} /></div>
+            <div><label className="label">Costo del producto</label><MoneyInput valueUsd={form.productCost} onChangeUsd={(v) => set('productCost', v)} /></div>
             <div><label className="label">Inicial (%)</label><NumberInput value={form.downPaymentPct} onChange={(v) => set('downPaymentPct', v)} /></div>
             <div><label className="label">Tasa interés anual (%)</label><NumberInput value={form.interestRate} onChange={(v) => set('interestRate', v)} /></div>
             <div><label className="label">Frecuencia</label><select className="input" value={form.frequency} onChange={(e) => set('frequency', e.target.value as PaymentFrequency)}><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div>
-            <div><label className="label">Ingreso mensual ($)</label><NumberInput value={form.monthlyIncome} onChange={(v) => set('monthlyIncome', v)} /></div>
+            <div><label className="label">Ingreso mensual</label><MoneyInput valueUsd={form.monthlyIncome} onChangeUsd={(v) => set('monthlyIncome', v)} /></div>
             <div>
               <label className="label">Agente asignado</label>
               <select className="input" value={form.assignedAgent} onChange={(e) => set('assignedAgent', e.target.value)}>

@@ -83,6 +83,7 @@ interface StoreValue extends PersistState {
   markInvoicePaid: (id: string) => Promise<void>;
   addInvoice: (i: Omit<Invoice, 'id'>) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
+  updateInvoiceDueDate: (id: string, dueDateISO: string) => Promise<void>;
   generateSchedule: (clientId: string) => Promise<void>;
   addProduct: (p: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (id: string, patch: Partial<Product>) => Promise<void>;
@@ -601,6 +602,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     newClient.bitacora = [];
     setState((s) => ({ ...s, clients: [newClient, ...s.clients] }));
     await logAudit('create', 'client', newClient.id, null, row);
+
+    // Las cuotas se crean solas: el vendedor no tiene que entrar al cliente y
+    // pulsar "Generar plan de pagos" para que aparezcan en Facturación.
+    // No se genera si la venta está prohibida (score 0) o si fue rechazado —
+    // en esos casos no hay nada que cobrar.
+    const prohibida = assessment.score === 0;
+    if (!prohibida && newClient.status !== 'rechazado' && newClient.productCost > 0) {
+      try {
+        await insertScheduleFor(newClient, false);
+      } catch (err) {
+        // El cliente ya quedó guardado; que falle el plan no debe deshacer eso.
+        console.error('No se pudo generar el plan de cuotas automáticamente', err);
+      }
+    }
     return newClient;
   };
 
@@ -796,10 +811,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await logAudit('delete', 'invoice', id, previous ? { ...previous } as Record<string, unknown> : null, null);
   };
 
+  /** Mueve la fecha de vencimiento de una cuota. Solo el administrador lo ve en
+   *  la interfaz. Queda en auditoría con la fecha vieja y la nueva, porque
+   *  correr un vencimiento cambia cuándo entra en mora. */
+  const updateInvoiceDueDate: StoreValue['updateInvoiceDueDate'] = async (id, dueDateISO) => {
+    const previous = state.invoices.find((i) => i.id === id) ?? null;
+    const { error } = await supabase.from('invoices').update({ due_date: dueDateISO }).eq('id', id);
+    if (error) throw error;
+    setState((s) => ({
+      ...s,
+      invoices: s.invoices.map((i) => (i.id === id ? { ...i, dueDate: dueDateISO } : i)),
+    }));
+    await logAudit(
+      'update_due_date', 'invoice', id,
+      previous ? { dueDate: previous.dueDate } : null,
+      { dueDate: dueDateISO },
+    );
+  };
+
   // ---- Auto-generate invoice schedule from amortization ----
-  const generateSchedule: StoreValue['generateSchedule'] = async (clientId) => {
-    const client = state.clients.find((c) => c.id === clientId);
-    if (!client) return;
+  /** Crea el plan de cuotas de un cliente. Recibe el cliente completo (no su id)
+   *  porque al registrarlo todavía no está en el estado de React.
+   *  `activate` pasa el cliente a 'activo'; al crearlo se respeta el estado que
+   *  eligió el vendedor. */
+  const insertScheduleFor = async (client: Client, activate: boolean) => {
+    const clientId = client.id;
     const { data: { user: u } } = await supabase.auth.getUser();
     const rows = computeAmortization(
       financedAmount(client.productCost, client.downPaymentPct),
@@ -843,17 +879,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         total_installments: rows.length,
       });
     });
+    if (invoicesToInsert.length === 0) return;
     const { data: inserted, error: insErr } = await supabase.from('invoices').insert(invoicesToInsert).select('*');
     if (insErr) throw insErr;
-    const { error: statusErr } = await supabase.from('clients').update({ status: 'activo' }).eq('id', clientId);
-    if (statusErr) throw statusErr;
+    if (activate) {
+      const { error: statusErr } = await supabase.from('clients').update({ status: 'activo' }).eq('id', clientId);
+      if (statusErr) throw statusErr;
+    }
     const newInvoices = ((inserted as Record<string, unknown>[]) ?? []).map(mapInvoice);
     setState((s) => ({
       ...s,
       invoices: [...newInvoices, ...s.invoices],
-      clients: s.clients.map((c) => (c.id === clientId ? { ...c, status: 'activo' } : c)),
+      clients: activate
+        ? s.clients.map((c) => (c.id === clientId ? { ...c, status: 'activo' } : c))
+        : s.clients,
     }));
     await logAudit('generate_schedule', 'invoices', clientId, null, { count: invoicesToInsert.length });
+  };
+
+  const generateSchedule: StoreValue['generateSchedule'] = async (clientId) => {
+    const client = state.clients.find((c) => c.id === clientId);
+    if (!client) return;
+    // Sin esto, volver a pulsar el botón duplicaba todas las cuotas.
+    if (state.invoices.some((i) => i.clientId === clientId)) {
+      throw new Error('Este cliente ya tiene un plan de cuotas generado.');
+    }
+    await insertScheduleFor(client, true);
   };
 
   const addProduct: StoreValue['addProduct'] = async (p) => {
@@ -1328,6 +1379,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     markInvoicePaid,
     addInvoice,
     deleteInvoice,
+    updateInvoiceDueDate,
     generateSchedule,
     addProduct,
     updateProduct,

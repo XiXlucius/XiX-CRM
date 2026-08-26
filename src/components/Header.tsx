@@ -9,6 +9,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { useCurrentRole } from '../store';
+import { CurrencySwitcher } from './CurrencySwitcher';
 import type { Role } from '../types';
 
 const ROLE_ICONS: Record<Role, typeof ShieldCheck> = {
@@ -58,6 +59,7 @@ export function Header({ onOpenTour, onOpenSidebar, onNavigate, notificationSlot
 
         {/* Right cluster */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <CurrencySwitcher />
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}

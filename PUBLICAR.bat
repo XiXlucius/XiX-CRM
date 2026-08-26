@@ -15,7 +15,7 @@ if exist ".git\index.lock" del /f /q ".git\index.lock" >nul 2>&1
 if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Documentar el recorrido de prueba desde el telefono" >> "%LOG%" 2>&1
+git commit -m "Iconos X verde, multimoneda USD/EUR/Bs con tasa BCV, cuotas automaticas y cambio de fecha" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

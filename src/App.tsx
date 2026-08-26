@@ -3,6 +3,7 @@ import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider, useStore } from './store';
 import { OrgProvider, useOrg } from './context/OrgContext';
+import { CurrencyProvider, useCurrency } from './context/CurrencyContext';
 import { PendingApprovalScreen } from './components/PendingApprovalScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
@@ -45,6 +46,7 @@ function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [crmInitialClient, setCrmInitialClient] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { currency: displayCurrency } = useCurrency();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -82,8 +84,11 @@ function AppShell() {
           />
           <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-5 sm:px-6">
             {/* § 6.2 — el bloque completo entra desde la derecha en cada cambio
-                de pestaña. La `key` es lo que vuelve a disparar la animación. */}
-            <div key={activeTab} className="ntInR">
+                de pestaña. La `key` es lo que vuelve a disparar la animación.
+                La moneda va en la clave a propósito: `fmtMoney` lee la moneda
+                de un módulo, no de un hook, así que al cambiarla hay que
+                volver a dibujar para que los montos se actualicen. */}
+            <div key={`${activeTab}-${displayCurrency}`} className="ntInR">
             {activeTab === 'dashboard'  && <DashboardTab />}
             {activeTab === 'crm'        && <CrmTab initialClientId={crmInitialClient} />}
             {activeTab === 'courses'    && <CursoTab />}
@@ -171,7 +176,9 @@ function AppInner() {
   return (
     <StoreProvider>
       <OrgProvider>
-        <AppGate />
+        <CurrencyProvider>
+          <AppGate />
+        </CurrencyProvider>
       </OrgProvider>
     </StoreProvider>
   );
