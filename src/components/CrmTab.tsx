@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   Users,
+  Pencil,
   LayoutGrid,
   List,
   Plus,
@@ -86,6 +87,8 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [selected, setSelected] = useState<Client | null>(null);
+  // Cliente que se está editando en el formulario (null = alta nueva).
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [calcOpen, setCalcOpen] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -101,6 +104,16 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
   useEffect(() => {
     applyLateFees();
   }, [applyLateFees]);
+
+  /** Cambiar el estado desde la lista, sin abrir la ficha. */
+  const handleStatusChange = async (clientId: string, status: ClientStatus) => {
+    try {
+      await updateClient(clientId, { status });
+      toast.success(`Estado cambiado a ${status.replace('_', ' ')}`);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
+  };
 
   const handleGenerate = async (clientId: string) => {
     setGenerating(clientId);
@@ -209,7 +222,12 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
           <AnimatePresence>
             {filtered.map((c) => (
               <motion.div key={c.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2 }}>
-                <ClientCard client={c} onOpen={() => setSelected(c)} />
+                <ClientCard
+                  client={c}
+                  onOpen={() => setSelected(c)}
+                  onChangeStatus={(st) => handleStatusChange(c.id, st)}
+                  onEdit={() => { setEditingClient(c); setFormOpen(true); }}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -241,7 +259,14 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
                       <td className="px-4 py-3 num text-slate-300">{fmtMoney(c.productCost * (1 - c.downPaymentPct / 100))}</td>
                       <td className="px-4 py-3"><RiskBadge score={c.riskScore} /></td>
                       <td className="px-4 py-3"><StatusChip status={c.status} /></td>
-                      <td className="px-4 py-3 text-right"><button onClick={() => setSelected(c)} className="btn-ghost px-2.5 py-1.5 text-xs">Ver</button></td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <button onClick={() => setSelected(c)} className="btn-ghost px-2.5 py-1.5 text-xs">Ver</button>
+                          <button onClick={() => { setEditingClient(c); setFormOpen(true); }} className="btn-ghost px-2.5 py-1.5 text-xs">
+                            <Pencil size={12} /> Editar
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -251,7 +276,13 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
           {/* Vista de tarjetas en móvil/tablet — mismos datos y acción que la tabla */}
           <div className="lg:hidden space-y-3">
             {filtered.map((c) => (
-              <ClientCard key={c.id} client={c} onOpen={() => setSelected(c)} />
+              <ClientCard
+                key={c.id}
+                client={c}
+                onOpen={() => setSelected(c)}
+                onChangeStatus={(st) => handleStatusChange(c.id, st)}
+                onEdit={() => { setEditingClient(c); setFormOpen(true); }}
+              />
             ))}
           </div>
         </>
@@ -261,15 +292,24 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
 
       <ClientFormModal
         open={formOpen}
-        onClose={() => setFormOpen(false)}
+        editing={editingClient}
+        onClose={() => { setFormOpen(false); setEditingClient(null); }}
         settings={settings}
         team={team}
         onSave={async (data) => {
           // Si falla, el error sube al formulario: el modal se queda abierto
           // con los datos intactos y él muestra el aviso.
-          await addClient(data);
-          toast.success('Cliente guardado');
+          if (editingClient) {
+            await updateClient(editingClient.id, data);
+            // La ficha abierta debe reflejar los cambios al instante.
+            setSelected((sel) => (sel && sel.id === editingClient.id ? { ...sel, ...data } : sel));
+            toast.success('Cliente actualizado');
+          } else {
+            await addClient(data);
+            toast.success('Cliente guardado');
+          }
           setFormOpen(false);
+          setEditingClient(null);
         }}
       />
 
@@ -297,6 +337,7 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
           }
         }}
         onGenerateSchedule={handleGenerate}
+        onEdit={() => { if (selected) { setEditingClient(selected); setFormOpen(true); } }}
         generating={generating}
         documents={selected ? documents.filter((d) => d.clientId === selected.id) : []}
         partialPayments={selected ? partialPayments.filter((p) => invoices.some((i) => i.id === p.invoiceId && i.clientId === selected.id)) : []}
@@ -421,23 +462,48 @@ function RiskPreview({ form, settings }: { form: Record<string, unknown>; settin
 
 // ---------- Client card ----------
 
-function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) {
+function ClientCard({ client, onOpen, onChangeStatus, onEdit }: {
+  client: Client;
+  onOpen: () => void;
+  /** Cambiar el estado sin abrir la ficha. Antes solo se podía desde el fondo
+   *  del modal de detalle, donde nadie lo encontraba, y los clientes se
+   *  quedaban en "prospecto" — con lo cual no sumaban a la cartera activa. */
+  onChangeStatus?: (status: ClientStatus) => void;
+  onEdit?: () => void;
+}) {
   const financed = client.productCost * (1 - client.downPaymentPct / 100);
   return (
-    <button onClick={onOpen} className="text-left w-full">
+    <div className="text-left w-full">
       <Card hover className="p-4 h-full">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300 font-semibold text-sm">
+        <div className="flex items-start justify-between gap-2">
+          <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900/60 ring-1 ring-tint/10 text-accent-300 font-semibold text-sm">
               {client.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
             </div>
-            <div>
-              <p className="font-medium text-metal-100">{client.fullName}</p>
-              <p className="text-xs text-slate-500">{client.cedula}</p>
+            <div className="min-w-0">
+              <p className="truncate font-medium text-metal-100">{client.fullName}</p>
+              <p className="truncate text-xs text-slate-500">{client.cedula}</p>
             </div>
+          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {onChangeStatus ? (
+              <StatusPicker status={client.status} onChange={onChangeStatus} />
+            ) : (
+              <StatusChip status={client.status} />
+            )}
+            {onEdit && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                title="Editar cliente"
+                aria-label="Editar cliente"
+                className="grid h-6 w-6 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-accent-500/10 hover:text-accent-300"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
           </div>
-          <StatusChip status={client.status} />
         </div>
+        <button onClick={onOpen} className="w-full text-left">
         <div className="mt-3 space-y-1.5 text-xs text-slate-400">
           <p className="flex items-center gap-1.5"><MapPin size={12} className="text-slate-500" /> {MUNI_LABELS[client.municipality]}</p>
           <p className="flex items-center gap-1.5"><Phone size={12} className="text-slate-500" /> {client.phone}</p>
@@ -449,8 +515,30 @@ function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) 
             <p className="num text-sm text-metal-100">{fmtMoney(financed)}</p>
           </div>
         </div>
+        </button>
       </Card>
-    </button>
+    </div>
+  );
+}
+
+/** Selector de estado en la propia tarjeta. Mantiene el aspecto del chip para
+ *  no ensuciar la lista, pero se puede desplegar y cambiar de una vez. */
+function StatusPicker({ status, onChange }: { status: ClientStatus; onChange: (s: ClientStatus) => void }) {
+  return (
+    <div className="relative shrink-0">
+      <StatusChip status={status} />
+      <select
+        aria-label="Cambiar estado del cliente"
+        value={status}
+        onChange={(e) => onChange(e.target.value as ClientStatus)}
+        onClick={(e) => e.stopPropagation()}
+        className="absolute inset-0 cursor-pointer opacity-0"
+      >
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>{s.replace('_', ' ')}</option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -521,12 +609,15 @@ function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client)
 
 // ---------- Client form ----------
 
-function ClientFormModal({ open, onClose, onSave, settings, team }: {
+function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
   open: boolean;
   onClose: () => void;
   onSave: (data: Omit<Client, 'id' | 'createdAt' | 'bitacora'>) => void | Promise<void>;
   settings: BusinessSettings;
   team: TeamMember[];
+  /** Si viene un cliente, el formulario entra en modo edición: se rellena con
+   *  sus datos y al guardar se actualiza en vez de crear uno nuevo. */
+  editing?: Client | null;
 }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
@@ -535,7 +626,11 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
     municipality: 'chacao' as Municipality, address: '', product: '',
     productCost: 1000, downPaymentPct: 20, interestRate: 18,
     frequency: 'quincenal' as PaymentFrequency, termMonths: 12,
-    status: 'prospecto' as ClientStatus, assignedAgent: 'Administrador',
+    // Registrar a alguien con producto, cuotas y fecha de cobro es registrar una
+    // venta cerrada, no un lead: entra como activo y su dinero suma a la cartera
+    // desde el primer momento. Si algún día se registra un prospecto de verdad,
+    // se cambia el estado en un clic desde la propia tarjeta.
+    status: 'activo' as ClientStatus, assignedAgent: 'Administrador',
     monthlyIncome: 1000,
     employmentTenure: '6m-1y' as EmploymentTenure,
     hasPhysicalId: true,
@@ -551,6 +646,34 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
   const set = (k: keyof typeof form, v: string | number | boolean) => setForm((f) => ({ ...f, [k]: v }));
 
   const effectiveTerm = termMonths + extraWeeks / 4.345;
+  const esEdicion = !!editing;
+
+  // Al abrir en modo edición se vuelca el cliente en el formulario. Se hace en
+  // un efecto y no en el useState inicial porque el mismo modal se reutiliza:
+  // sin esto, abrir un segundo cliente mostraría los datos del primero.
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setForm({
+        fullName: editing.fullName, cedula: editing.cedula,
+        phone: editing.phone, email: editing.email,
+        municipality: editing.municipality, address: editing.address,
+        product: editing.product, productCost: editing.productCost,
+        downPaymentPct: editing.downPaymentPct, interestRate: editing.interestRate,
+        frequency: editing.frequency, termMonths: editing.termMonths,
+        status: editing.status, assignedAgent: editing.assignedAgent,
+        monthlyIncome: editing.monthlyIncome,
+        employmentTenure: editing.employmentTenure ?? '6m-1y',
+        hasPhysicalId: editing.hasPhysicalId ?? true,
+        firstPaymentDate: editing.firstPaymentDate?.slice(0, 10) ?? '',
+        latitude: editing.latitude != null ? String(editing.latitude) : '',
+        longitude: editing.longitude != null ? String(editing.longitude) : '',
+      });
+      // El plazo se guarda en meses con decimales (meses + semanas extra).
+      setTermMonths(Math.floor(editing.termMonths));
+      setExtraWeeks(Math.round((editing.termMonths % 1) * 4.345));
+    }
+  }, [open, editing]);
 
   const submit = async () => {
     if (saving) return;
@@ -572,13 +695,15 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
         longitude: lng,
       } as Omit<Client, 'id' | 'createdAt' | 'bitacora'>);
 
-      // Solo se limpia si el guardado salió bien. Si falla, los datos
-      // se quedan tal cual para no tener que llenar todo de nuevo.
-      setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'prospecto', assignedAgent: 'Administrador', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
-      setEqualInstallments(false);
-      setNumInstallments(12);
-      setTermMonths(12);
-      setExtraWeeks(0);
+      // Al editar no se limpia: el modal se cierra y el cliente conserva sus
+      // datos. Solo el alta vacía el formulario para el siguiente registro.
+      if (!esEdicion) {
+        setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'activo', assignedAgent: 'Administrador', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
+        setEqualInstallments(false);
+        setNumInstallments(12);
+        setTermMonths(12);
+        setExtraWeeks(0);
+      }
     } catch (err) {
       toast.error(friendlyError(err));
     } finally {
@@ -587,8 +712,20 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Nueva solicitud a crédito" size="lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={esEdicion ? `Editar a ${editing?.fullName}` : 'Nueva solicitud a crédito'}
+      size="lg"
+    >
       <div className="space-y-4">
+        {esEdicion && (
+          <p className="rounded-xl border border-warning/25 bg-warning/5 p-3 text-xs text-warning-400">
+            Las cuotas ya creadas <span className="font-medium">no se recalculan</span> al editar.
+            Si cambias el costo, la inicial o el plazo, ajusta también las facturas
+            en Facturación o bórralas y vuelve a generarlas.
+          </p>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
           <div><label className="label">Nombre completo</label><input className="input" value={form.fullName} onChange={(e) => set('fullName', e.target.value)} /></div>
           <div><label className="label">Cédula</label><input className="input" value={form.cedula} onChange={(e) => set('cedula', e.target.value)} placeholder="V-12.345.678" /></div>
@@ -746,7 +883,7 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
           <button onClick={onClose} className="btn-ghost" disabled={saving}>Cancelar</button>
           <button onClick={submit} className="btn-primary" disabled={saving}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
-            {saving ? 'Guardando…' : 'Registrar cliente'}
+            {saving ? 'Guardando…' : esEdicion ? 'Guardar cambios' : 'Registrar cliente'}
           </button>
         </div>
       </div>
@@ -757,7 +894,7 @@ function ClientFormModal({ open, onClose, onSave, settings, team }: {
 // ---------- Client detail + tabs ----------
 
 function ClientDetailModal({
-  client, onClose, onUpdate, onAddNote, onGenerateSchedule, generating,
+  client, onClose, onUpdate, onAddNote, onGenerateSchedule, generating, onEdit,
   documents, partialPayments, renegotiations, lateFees, invoices, templates,
   onUploadDoc, onDeleteDoc, onAddPartialPayment, onAddRenegotiation, onSendWhatsApp,
 }: {
@@ -766,6 +903,8 @@ function ClientDetailModal({
   onUpdate: (patch: Partial<Client>) => void;
   onAddNote: (entry: { author: string; channel: 'llamada' | 'whatsapp' | 'visita' | 'email'; note: string; outcome: 'contactado' | 'no_responde' | 'compromiso' | 'rechazo' | 'recordatorio' }) => void;
   onGenerateSchedule: (clientId: string) => void;
+  /** Abre el formulario completo con los datos del cliente cargados. */
+  onEdit?: () => void;
   generating: string | null;
   documents: ClientDocument[];
   partialPayments: PartialPayment[];
@@ -838,6 +977,11 @@ function ClientDetailModal({
           <span className="text-xs text-slate-500">Cédula: {client.cedula}</span>
           <span className="text-xs text-slate-500">·</span>
           <span className="text-xs text-slate-500">Registrado {fmtDate(client.createdAt)}</span>
+          {onEdit && (
+            <button onClick={onEdit} className="btn-ghost ml-auto px-2.5 py-1.5 text-xs">
+              <Pencil size={13} /> Editar cliente
+            </button>
+          )}
           {totalLateFees > 0 && (
             <span className="chip bg-danger/15 text-danger-400">
               <AlertCircle size={11} /> Mora: {fmtMoney(totalLateFees)}

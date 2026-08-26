@@ -56,11 +56,17 @@ export function DashboardTab() {
     ).length;
     const active = scopedClients.filter((c) => c.status === 'activo').length;
     const delinquent = scopedClients.filter((c) => c.status === 'en_mora').length;
+    // El índice de mora es "cuántos de los que me deben están atrasados". El
+    // divisor tiene que incluir a los morosos: si no, con 1 al día y 1 atrasado
+    // daba 100% en vez del 50% real.
+    const conCredito = active + delinquent;
     const conversion = total ? (approved / total) * 100 : 0;
+    // Un cliente en mora te sigue debiendo: ese dinero es cartera, aunque esté
+    // atrasado. Excluirlo hacía que el panel mostrara menos de lo que hay.
     const activePortfolio = scopedClients
-      .filter((c) => c.status === 'activo')
+      .filter((c) => c.status === 'activo' || c.status === 'en_mora')
       .reduce((a, c) => a + c.productCost * (1 - c.downPaymentPct / 100), 0);
-    const delinquencyIndex = active ? (delinquent / active) * 100 : 0;
+    const delinquencyIndex = conCredito ? (delinquent / conCredito) * 100 : 0;
     const monthlyCollections = scopedInvoices
       .filter((i) => i.status === 'pagada')
       .reduce((a, i) => a + i.amount, 0);

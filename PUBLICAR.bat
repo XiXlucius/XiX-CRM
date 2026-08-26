@@ -19,7 +19,7 @@ if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 if exist ".git\config.lock" del /f /q ".git\config.lock" >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Academia: importar el curriculo de XiX Tech (24 cursos, 96 lecciones) + 10 cursos propios" >> "%LOG%" 2>&1
+git commit -m "Editar clientes completos, estado desde la lista, cartera con morosos y Academia XiX Tech" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 
