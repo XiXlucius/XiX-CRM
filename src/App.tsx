@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider, useStore } from './store';
@@ -16,7 +16,12 @@ import { OnboardingTour } from './components/OnboardingTour';
 import { ParticleField } from './components/ParticleField';
 import { DashboardTab } from './components/DashboardTab';
 import { CrmTab } from './components/CrmTab';
-import { CursoTab } from './components/CursoTab';
+// La Academia carga ~300 KB de material del currículo. Se separa del
+// paquete principal para que abrir el CRM no arrastre ese peso: se
+// descarga solo cuando alguien entra a la sección.
+const CursoTab = lazy(() =>
+  import('./components/CursoTab').then((m) => ({ default: m.CursoTab })),
+);
 import { PlaybookTab } from './components/PlaybookTab';
 import { EquipoTab } from './components/EquipoTab';
 import { FacturacionTab } from './components/FacturacionTab';
@@ -91,7 +96,11 @@ function AppShell() {
             <div key={`${activeTab}-${displayCurrency}`} className="ntInR">
             {activeTab === 'dashboard'  && <DashboardTab />}
             {activeTab === 'crm'        && <CrmTab initialClientId={crmInitialClient} />}
-            {activeTab === 'courses'    && <CursoTab />}
+            {activeTab === 'courses'    && (
+              <Suspense fallback={<div className="grid place-items-center py-20"><Loader2 size={22} className="text-accent animate-spin" /></div>}>
+                <CursoTab />
+              </Suspense>
+            )}
             {activeTab === 'playbook'   && <PlaybookTab />}
             {activeTab === 'equipo'     && <EquipoTab />}
             {activeTab === 'facturacion'&& <FacturacionTab onSelectClient={selectClient} />}

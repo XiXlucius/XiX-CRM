@@ -154,12 +154,17 @@ export interface AmortizationRow {
 export interface Course {
   id: string;
   title: string;
-  category: 'ventas' | 'cobranza' | 'producto' | 'objeciones';
+  category: 'ventas' | 'cobranza' | 'producto' | 'objeciones' | 'formacion' | 'marketing';
   level: 'inicial' | 'intermedio' | 'avanzado';
   durationMin: number;
   description: string;
   lessons: Lesson[];
-  quiz: Quiz;
+  /** Opcional: el currículo importado de Notion no trae evaluaciones. Un curso
+   *  sin quiz se completa leyendo sus lecciones. */
+  quiz?: Quiz;
+  /** De dónde viene el curso: "Educación para Vendedores", "Educación para
+   *  Directivos"… Sirve para agrupar en la pantalla. */
+  area?: string;
 }
 
 export interface Lesson {

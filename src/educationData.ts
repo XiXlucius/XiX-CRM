@@ -588,6 +588,383 @@ export const COURSES: Course[] = [
       ],
     },
   },
+  // ============================================================
+  // Psicología aplicada a la venta y la cobranza.
+  // Contenido de oficio, no del programa. Se apoya en hallazgos
+  // establecidos de economía del comportamiento (dolor de pagar,
+  // contabilidad mental, sesgo del presente) y en los principios
+  // de influencia de Cialdini, siempre con el límite ético por
+  // delante: en venta a crédito, convencer a alguien que no puede
+  // pagar no es una venta, es una mora futura.
+  // ============================================================
+  {
+    id: 'crs10',
+    title: 'Por qué la gente compra a crédito',
+    category: 'ventas',
+    level: 'intermedio',
+    durationMin: 35,
+    description:
+      'Qué pasa en la cabeza del cliente cuando decide financiar: el dolor de pagar, la contabilidad mental y por qué el futuro se siente lejos.',
+    lessons: [
+      {
+        id: 'l1',
+        title: 'El dolor de pagar',
+        body: 'Entregar dinero activa en el cerebro algo parecido al dolor físico. Mientras más visible y concentrado es el pago, más duele: soltar $400 de una vez duele mucho más que pagar $34 quincenales, aunque al final sea más caro. El crédito no elimina ese dolor, lo reparte en pedazos pequeños. Por eso una cuota se acepta con facilidad donde el precio de contado espantaba.',
+        keyTakeaway: 'No vendes un precio más bajo: vendes un dolor repartido.',
+      },
+      {
+        id: 'l2',
+        title: 'Contabilidad mental',
+        body: 'Las personas no manejan un solo bolsillo: separan mentalmente el dinero en cajones — "esto es de la comida", "esto es del alquiler". Una cuota quincenal entra fácil en el cajón de los gastos fijos; un desembolso grande no tiene cajón donde meterse. Cuando presentas la cuota junto a otros gastos fijos que el cliente ya paga sin pensar, le estás dando un lugar donde guardarla.',
+        keyTakeaway: 'Ubica la cuota en un cajón mental que el cliente ya tiene abierto.',
+      },
+      {
+        id: 'l3',
+        title: 'El futuro se siente lejos',
+        body: 'Somos malos evaluando compromisos futuros: lo que pasa hoy pesa muchísimo más que lo que pasará en seis meses. El cliente siente hoy el gusto de llevarse la nevera y siente apenas de refilón las once cuotas que vienen. Eso te facilita el cierre, pero es exactamente el mismo mecanismo que produce la mora. Tu trabajo no es aprovecharlo, es compensarlo: hazle sentir la cuota antes de firmar, no después.',
+        keyTakeaway: 'El sesgo que te ayuda a cerrar es el que después te genera la mora.',
+      },
+      {
+        id: 'l4',
+        title: 'Anclaje y encuadre',
+        body: 'El primer número que escucha el cliente se le queda pegado y todo lo demás lo compara contra él. Si abres con el precio de contado, la cuota parece un alivio. Y la misma cifra cambia según cómo la digas: "$34 quincenales" y "$68 al mes" son lo mismo, pero no se sienten igual. Esto no es truco: es elegir la unidad que el cliente realmente usa para pensar su presupuesto.',
+        keyTakeaway: 'Habla en la unidad en que el cliente piensa su plata: la quincena.',
+      },
+      {
+        id: 'l5',
+        title: 'El límite: vender no es convencer a cualquiera',
+        body: 'Todo lo anterior sirve para que un cliente que SÍ puede pagar entienda la oferta y se decida. Usarlo con alguien que no puede pagar es fabricarte una mora, una visita perdida y un cliente que te evita. El sistema ya te dice cuándo el perfil no da: cuando lo diga, la psicología no es para pelearle al número, es para explicarle al cliente por qué todavía no.',
+        keyTakeaway: 'Si el score dice que no, la técnica no está para forzar el sí.',
+      },
+    ],
+    quiz: {
+      id: 'q10',
+      questions: [
+        {
+          id: 'qq1',
+          prompt: '¿Por qué una cuota quincenal se acepta más fácil que el precio de contado?',
+          options: ['Porque sale más barato', 'Porque reparte el dolor de pagar en pedazos pequeños', 'Porque el cliente no sabe sumar', 'Porque no tiene intereses'],
+          correctIndex: 1,
+          explanation: 'Pagar duele; repartirlo en montos pequeños reduce ese dolor aunque el total sea mayor.',
+        },
+        {
+          id: 'qq2',
+          prompt: 'El cliente siente mucho el beneficio de hoy y poco las cuotas futuras. Eso:',
+          options: ['Es bueno, cierra más rápido', 'Facilita el cierre pero es la raíz de la mora', 'No existe', 'Solo pasa con clientes nuevos'],
+          correctIndex: 1,
+          explanation: 'El sesgo del presente ayuda a cerrar y después produce el incumplimiento. Hay que compensarlo antes de firmar.',
+        },
+        {
+          id: 'qq3',
+          prompt: 'El score dice "venta prohibida" pero el cliente insiste mucho. ¿Qué haces?',
+          options: ['Aplicas técnicas hasta convencerlo', 'Le explicas por qué todavía no se puede', 'Bajas la inicial', 'Le pides que traiga un fiador'],
+          correctIndex: 1,
+          explanation: 'Convencer a quien no puede pagar es fabricar una mora. La técnica sirve para explicar, no para forzar.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'crs11',
+    title: 'Influencia ética en la venta',
+    category: 'ventas',
+    level: 'avanzado',
+    durationMin: 40,
+    description:
+      'Los seis resortes que mueven una decisión, cómo usarlos con honestidad, y cómo reconocer cuándo te los están aplicando a ti.',
+    lessons: [
+      {
+        id: 'l1',
+        title: 'Reciprocidad',
+        body: 'Cuando alguien nos da algo primero, sentimos la necesidad de devolver. Un cálculo de cuotas hecho con cuidado, una recomendación honesta que no te conviene, resolver una duda que no era tu problema — todo eso crea reciprocidad genuina. La versión falsa (un "regalo" que en realidad es parte del precio) se nota y destruye la confianza.',
+        keyTakeaway: 'Da algo de valor real antes de pedir. Los regalos falsos se huelen.',
+      },
+      {
+        id: 'l2',
+        title: 'Compromiso y coherencia',
+        body: 'Las personas quieren ser consistentes con lo que ya dijeron. Si el cliente dice en voz alta "sí, necesito reemplazar esa nevera este mes", tiende a actuar en consecuencia. En cobranza esto es todavía más fuerte: un compromiso concreto y dicho por el cliente ("le pago el viernes al mediodía") se cumple mucho más que uno vago ("yo le aviso").',
+        keyTakeaway: 'Haz que el compromiso lo diga el cliente, con día y hora.',
+      },
+      {
+        id: 'l3',
+        title: 'Prueba social',
+        body: 'Miramos a los demás para decidir, sobre todo cuando somos parecidos. "Tres vecinos de esta misma calle tienen el plan" convence más que cualquier argumento técnico. Requisito: tiene que ser verdad y tiene que ser gente parecida al cliente. Inventar vecinos es la forma más rápida de perder un barrio completo, porque acá todos se conocen.',
+        keyTakeaway: 'La prueba social funciona con gente parecida y solo si es cierta.',
+      },
+      {
+        id: 'l4',
+        title: 'Autoridad y simpatía',
+        body: 'Hacemos caso a quien demuestra saber, y le compramos a quien nos cae bien. La autoridad se construye conociendo de verdad el producto y el plan: si titubeas con el cálculo de la cuota, la perdiste. La simpatía se construye con interés genuino, no con halagos. Ambas son lentas de ganar e instantáneas de perder.',
+        keyTakeaway: 'Domina tu cálculo y muestra interés real. Nada de esto se improvisa.',
+      },
+      {
+        id: 'l5',
+        title: 'Escasez, con cuidado',
+        body: 'Lo que escasea se desea más. "Quedan dos en inventario" mueve la decisión — si es verdad. La escasez inventada es la técnica más usada y la que más rápido quema tu reputación en una zona donde los clientes hablan entre ellos. Si de verdad quedan dos, dilo. Si no, no.',
+        keyTakeaway: 'La escasez solo se usa cuando es real. En un barrio, la mentira se sabe.',
+      },
+      {
+        id: 'l6',
+        title: 'La prueba de la almohada',
+        body: 'Una forma sencilla de saber si cruzaste la línea: ¿estarías cómodo si el cliente escuchara la grabación de tu conversación un año después, ya con las cuotas encima? Si la respuesta es no, no lo hagas. En venta a crédito el cliente no desaparece después de firmar: lo vas a ver cada quince días durante un año.',
+        keyTakeaway: 'Vas a ver a este cliente cada quince días. Véndele como si eso importara.',
+      },
+    ],
+    quiz: {
+      id: 'q11',
+      questions: [
+        {
+          id: 'qq1',
+          prompt: 'Un compromiso de pago se cumple más si:',
+          options: ['Lo dices tú por él', 'Lo dice el cliente con día y hora concretos', 'Se lo mandas por escrito', 'Le subes la multa'],
+          correctIndex: 1,
+          explanation: 'El compromiso dicho por el propio cliente y concreto activa la coherencia.',
+        },
+        {
+          id: 'qq2',
+          prompt: 'No quedan pocas unidades, pero decirlo ayudaría a cerrar. ¿Lo dices?',
+          options: ['Sí, es una técnica normal', 'No — la escasez falsa quema tu reputación en la zona', 'Solo con clientes nuevos', 'Solo si el jefe lo autoriza'],
+          correctIndex: 1,
+          explanation: 'En cobranza puerta a puerta los clientes se conocen entre sí. Una mentira se propaga.',
+        },
+        {
+          id: 'qq3',
+          prompt: 'La prueba social funciona mejor cuando los ejemplos son:',
+          options: ['Famosos', 'Personas parecidas al cliente y reales', 'De otra ciudad', 'Del vendedor mismo'],
+          correctIndex: 1,
+          explanation: 'Nos comparamos con gente parecida. Y tiene que ser verdad.',
+        },
+        {
+          id: 'qq4',
+          prompt: '¿Cuál es la "prueba de la almohada"?',
+          options: ['Dormir antes de decidir', 'Preguntarte si estarías cómodo si el cliente oyera la conversación un año después', 'Consultar con el supervisor', 'Revisar el contrato'],
+          correctIndex: 1,
+          explanation: 'Es el filtro ético rápido: el cliente sigue ahí después de firmar.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'crs12',
+    title: 'Psicología de la cobranza',
+    category: 'cobranza',
+    level: 'avanzado',
+    durationMin: 35,
+    description:
+      'Por qué el moroso no contesta el teléfono, cómo pedir dinero sin romper la relación, y cómo conseguir compromisos que se cumplan.',
+    lessons: [
+      {
+        id: 'l1',
+        title: 'La vergüenza hace desaparecer al cliente',
+        body: 'El que no puede pagar rara vez está huyendo por vivo: la mayoría no contesta porque le da vergüenza. Evitar la llamada le quita el malestar por un rato. Si tu primer contacto suena a reclamo, confirmas su miedo y refuerzas la evitación. Si suena a "vengo a ver cómo lo resolvemos", le quitas el motivo para esconderse.',
+        keyTakeaway: 'No contesta por vergüenza, no por vivo. Quítale el motivo para esconderse.',
+      },
+      {
+        id: 'l2',
+        title: 'Separar a la persona del problema',
+        body: 'Ataca la deuda, nunca a la persona. "Usted es un irresponsable" pone al cliente a defenderse de ti en vez de ocuparse del pago. "Tenemos un saldo de $60 con tres semanas de atraso, ¿cómo lo resolvemos?" pone el problema afuera, sobre la mesa, y los deja a los dos del mismo lado mirándolo.',
+        keyTakeaway: 'El problema va sobre la mesa, no entre ustedes dos.',
+      },
+      {
+        id: 'l3',
+        title: 'Compromisos que sí se cumplen',
+        body: 'Un compromiso vago no es un compromiso. Tres cosas lo vuelven real: que sea concreto (monto, día y hora), que lo diga el cliente en sus propias palabras, y que quede anotado y repetido en voz alta. "¿Entonces quedamos en que el viernes a las 3 me tiene los $30?" cierra el círculo. Anótalo en la bitácora delante de él: el gesto mismo le da peso.',
+        keyTakeaway: 'Monto, día y hora, dicho por él, anotado delante de él.',
+      },
+      {
+        id: 'l4',
+        title: 'Quitar fricción',
+        body: 'Mucha mora no es falta de dinero, es falta de facilidad. Cada obstáculo — no saber cuánto debe exactamente, no tener el número de cuenta a mano, no coincidir con el cobrador — es una excusa que el cerebro agradece. Llegar con el monto exacto calculado y la forma de pago lista elimina esas salidas.',
+        keyTakeaway: 'Llega con el monto exacto y la forma de pagar resuelta.',
+      },
+      {
+        id: 'l5',
+        title: 'La escalera de contacto',
+        body: 'La presión sube por peldaños, no de golpe: primero el recordatorio amable antes del vencimiento, después el contacto el día siguiente, luego la visita, después la renegociación formal, y solo al final el escalamiento. Saltarse peldaños quema la relación y no acelera nada. Cada peldaño se anota, porque es lo que justifica pasar al siguiente.',
+        keyTakeaway: 'Sube un peldaño a la vez, y anota cada uno.',
+      },
+      {
+        id: 'l6',
+        title: 'Renegociar no es perder',
+        body: 'Un cliente que renegocia y paga vale infinitamente más que uno que se esconde y nunca paga. Estirar el plazo o bajar la cuota cuando la situación del cliente cambió de verdad recupera dinero que de otro modo se iba a perder — y conserva a alguien que va a volver a comprar. Lo que no funciona es renegociar con quien simplemente no quiere pagar.',
+        keyTakeaway: 'Renegocia con quien no puede. Con quien no quiere, escala.',
+      },
+    ],
+    quiz: {
+      id: 'q12',
+      questions: [
+        {
+          id: 'qq1',
+          prompt: 'El cliente lleva tres días sin contestar. La razón más común es:',
+          options: ['Se está burlando', 'Vergüenza y evitación', 'Cambió de número', 'Se mudó'],
+          correctIndex: 1,
+          explanation: 'La mayoría evita el contacto por incomodidad, no por astucia.',
+        },
+        {
+          id: 'qq2',
+          prompt: '¿Cuál compromiso tiene más probabilidad de cumplirse?',
+          options: ['"Yo le aviso cuando pueda"', '"El viernes a las 3 le tengo los $30"', '"La próxima semana veo"', '"Apenas cobre le pago"'],
+          correctIndex: 1,
+          explanation: 'Concreto, con monto, día y hora. Los demás son vaguedades.',
+        },
+        {
+          id: 'qq3',
+          prompt: 'Un cliente perdió el empleo y quiere renegociar. ¿Qué conviene?',
+          options: ['Negarse, es su problema', 'Renegociar: recuperas dinero que si no se pierde', 'Escalar de inmediato', 'Aplicarle doble multa'],
+          correctIndex: 1,
+          explanation: 'Con quien no puede pagar, renegociar recupera dinero. Escalar se reserva para quien no quiere.',
+        },
+        {
+          id: 'qq4',
+          prompt: 'Llegas a cobrar sin saber el monto exacto de la deuda. Eso:',
+          options: ['Da igual', 'Le regala al cliente una excusa para no pagar hoy', 'Es más flexible', 'Genera confianza'],
+          correctIndex: 1,
+          explanation: 'Cada fricción es una salida cómoda. Llega con el número exacto.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'crs13',
+    title: 'Escuchar y preguntar',
+    category: 'ventas',
+    level: 'inicial',
+    durationMin: 25,
+    description:
+      'La habilidad que más vende y menos se practica: hacer que el cliente hable y de verdad escuchar lo que dice.',
+    lessons: [
+      {
+        id: 'l1',
+        title: 'El que pregunta, dirige',
+        body: 'En una conversación de venta manda quien pregunta, no quien más habla. Una regla práctica: el cliente debería hablar más que tú. Si sales de una visita habiendo hablado el 80% del tiempo, no vendiste — expusiste, que es distinto.',
+        keyTakeaway: 'Si hablaste más que el cliente, no fue una venta: fue una exposición.',
+      },
+      {
+        id: 'l2',
+        title: 'Preguntas abiertas',
+        body: 'Las preguntas de sí o no cierran la conversación; las abiertas la abren. "¿Le interesa la nevera?" se responde con un no y se acabó. "¿Qué problema le está dando la que tiene ahora?" te da la necesidad real, la urgencia y, muchas veces, el presupuesto — todo sin haberlo pedido.',
+        keyTakeaway: 'Cambia "¿le interesa?" por "¿qué problema tiene hoy?".',
+      },
+      {
+        id: 'l3',
+        title: 'El silencio trabaja para ti',
+        body: 'Después de preguntar algo importante, cállate. El silencio incomoda y la gente lo llena — normalmente con la información más valiosa de toda la conversación. La mayoría de los vendedores arruina esto rellenando el silencio con otra pregunta o con un argumento. Aguanta tres segundos. Se hacen eternos y funcionan.',
+        keyTakeaway: 'Pregunta y cállate. El cliente llenará el silencio.',
+      },
+      {
+        id: 'l4',
+        title: 'Escuchar de verdad',
+        body: 'Escuchar no es esperar tu turno para hablar. Se demuestra devolviéndole al cliente lo que dijo con tus palabras: "Entonces, si entendí bien, lo que le preocupa no es el precio sino que la cuota le caiga en la quincena floja". Si acertaste, el cliente se abre; si te equivocaste, te corrige — y ganas igual, porque ahora sí sabes.',
+        keyTakeaway: 'Repite con tus palabras lo que entendiste. Aciertes o no, ganas.',
+      },
+      {
+        id: 'l5',
+        title: 'Escuchar también protege',
+        body: 'Preguntar bien no solo vende: te evita colocarle un crédito a quien no lo va a poder pagar. "¿Cómo le quedaría esta cuota en un mes flojo?" es una pregunta de venta y de riesgo al mismo tiempo. La respuesta te dice si estás cerrando una venta o firmando una mora.',
+        keyTakeaway: 'La misma pregunta que cierra la venta te avisa del riesgo.',
+      },
+    ],
+    quiz: {
+      id: 'q13',
+      questions: [
+        {
+          id: 'qq1',
+          prompt: 'En una buena visita de venta, ¿quién habla más?',
+          options: ['El vendedor', 'El cliente', 'Los dos igual', 'Depende del producto'],
+          correctIndex: 1,
+          explanation: 'El cliente debe hablar más. Si expusiste todo tú, no vendiste.',
+        },
+        {
+          id: 'qq2',
+          prompt: '¿Cuál es una pregunta abierta?',
+          options: ['¿Le interesa?', '¿Se la llevo mañana?', '¿Qué problema le da la que tiene ahora?', '¿Puede pagar $34?'],
+          correctIndex: 2,
+          explanation: 'Las abiertas no se responden con sí o no y revelan la necesidad real.',
+        },
+        {
+          id: 'qq3',
+          prompt: 'Hiciste una pregunta importante y el cliente se queda callado. ¿Qué haces?',
+          options: ['Haces otra pregunta', 'Argumentas', 'Aguantas el silencio', 'Te despides'],
+          correctIndex: 2,
+          explanation: 'El silencio se llena con la información más valiosa. Aguántalo.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'crs14',
+    title: 'Tus propios sesgos como vendedor',
+    category: 'ventas',
+    level: 'avanzado',
+    durationMin: 30,
+    description:
+      'Los errores de juicio que comete el vendedor —no el cliente— y que terminan convertidos en cartera vencida.',
+    lessons: [
+      {
+        id: 'l1',
+        title: 'Optimismo con el cliente simpático',
+        body: 'Cuando alguien nos cae bien, le suponemos cualidades que no hemos verificado: si es amable, asumimos que es cumplidor. No tiene relación. El cliente más encantador de tu cartera puede ser el que más te haga caminar. Para eso está el score: es la parte del juicio que no se deja llevar por la simpatía.',
+        keyTakeaway: 'Simpático no es sinónimo de cumplidor. Por eso existe el puntaje.',
+      },
+      {
+        id: 'l2',
+        title: 'Buscar solo lo que confirma',
+        body: 'Cuando ya decidimos que una venta va, empezamos a fijarnos solo en lo que la apoya y a restarle importancia a lo que la contradice. "Sí, lleva poco en el trabajo, pero se ve serio". Ese "pero" es la señal de alarma. Cuando te oigas justificando por qué esta vez la regla no aplica, para.',
+        keyTakeaway: 'Si te oyes diciendo "sí, pero...", estás justificando, no evaluando.',
+      },
+      {
+        id: 'l3',
+        title: 'El costo hundido',
+        body: 'Llevas cuatro visitas con el mismo prospecto y no cierra. La tentación es seguir insistiendo "porque ya invertí mucho tiempo". Ese tiempo ya se gastó y no vuelve, decidas lo que decidas. La única pregunta válida es si la quinta visita vale más que dedicar ese rato a otro cliente.',
+        keyTakeaway: 'El tiempo ya gastado no cuenta. Solo cuenta qué conviene ahora.',
+      },
+      {
+        id: 'l4',
+        title: 'La meta del mes nubla',
+        body: 'Los últimos días del mes son los que más mora producen. Con la meta encima, el mismo perfil que habrías rechazado el día 5 de pronto "se puede intentar". Esa venta forzada te sube el número este mes y te lo baja los seis siguientes, entre visitas perdidas y comisión que nunca se cobró.',
+        keyTakeaway: 'La venta que fuerzas para la meta la pagas los seis meses siguientes.',
+      },
+      {
+        id: 'l5',
+        title: 'Para qué sirve un sistema',
+        body: 'Ninguno de estos sesgos se corrige con fuerza de voluntad ni con experiencia — los expertos los tienen igual. Se corrigen con reglas fijadas antes, cuando estabas frío: umbrales de ingreso, antigüedad mínima, prohibiciones. El sistema no está para desconfiar de ti; está para protegerte de ti mismo un martes 29 con la meta a medias.',
+        keyTakeaway: 'Las reglas se fijan en frío justamente para sostenerte en caliente.',
+      },
+    ],
+    quiz: {
+      id: 'q14',
+      questions: [
+        {
+          id: 'qq1',
+          prompt: 'Un cliente te cae muy bien y es conversador. Sobre su cumplimiento de pago eso indica:',
+          options: ['Que es más probable que pague', 'Nada', 'Que se le puede dar más plazo', 'Que no hace falta el score'],
+          correctIndex: 1,
+          explanation: 'La simpatía no predice el cumplimiento. El efecto halo nos hace creer que sí.',
+        },
+        {
+          id: 'qq2',
+          prompt: 'Te escuchas diciendo "lleva poco en el trabajo, pero se ve serio". Eso es señal de:',
+          options: ['Buen ojo comercial', 'Sesgo de confirmación: estás justificando', 'Experiencia', 'Empatía'],
+          correctIndex: 1,
+          explanation: 'El "pero" que salva una regla es la señal clásica de que estás justificando una decisión ya tomada.',
+        },
+        {
+          id: 'qq3',
+          prompt: 'Llevas cuatro visitas sin cerrar. ¿Qué pregunta corresponde?',
+          options: ['¿Cómo recupero el tiempo invertido?', '¿Vale más la quinta visita que atender a otro cliente?', '¿Le bajo la cuota?', '¿Insisto una vez más porque ya invertí?'],
+          correctIndex: 1,
+          explanation: 'El tiempo gastado no vuelve. Solo importa el uso siguiente de tu tiempo.',
+        },
+        {
+          id: 'qq4',
+          prompt: '¿Por qué los últimos días del mes producen más mora?',
+          options: ['La gente cobra después', 'La presión de la meta relaja el criterio de riesgo', 'Hay más visitas', 'Por el clima'],
+          correctIndex: 1,
+          explanation: 'Con la meta encima se aprueban perfiles que en frío se habrían rechazado.',
+        },
+      ],
+    },
+  },
 ];
 
 // ============================================================

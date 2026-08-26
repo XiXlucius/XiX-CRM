@@ -11,11 +11,15 @@ echo   Guardando y publicando los cambios
 echo ================================================================
 echo.
 
+REM Estos candados los deja git cuando algo se interrumpe a medias.
+REM Si no se borran, cualquier intento posterior falla con
+REM "Unable to create index.lock".
 if exist ".git\index.lock" del /f /q ".git\index.lock" >nul 2>&1
 if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
+if exist ".git\config.lock" del /f /q ".git\config.lock" >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Iconos X verde, multimoneda USD/EUR/Bs con tasa BCV, cuotas automaticas y cambio de fecha" >> "%LOG%" 2>&1
+git commit -m "Academia: importar el curriculo de XiX Tech (24 cursos, 96 lecciones) + 10 cursos propios" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

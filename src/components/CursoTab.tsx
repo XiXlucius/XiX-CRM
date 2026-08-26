@@ -17,17 +17,33 @@ import {
   Clock,
 } from 'lucide-react';
 import { useStore } from '../store';
-import { COURSES, BADGES } from '../educationData';
+import { COURSES as CURSOS_PROPIOS, BADGES } from '../educationData';
+import { CURRICULO } from '../educationContent';
 import type { Course, QuizQuestion } from '../types';
 import { Card, SectionHeader, Modal, EmptyState, fmtPct } from './ui';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
+
+// Los cursos escritos a medida para el CRM van primero; detrás, el
+// currículo de XiX Tech importado de Notion.
+const COURSES = [...CURSOS_PROPIOS, ...CURRICULO];
 
 const CATEGORY_COLORS: Record<string, string> = {
   ventas: 'bg-ink-900/60 ring-1 ring-accent-500/20 text-accent-300',
   cobranza: 'bg-ink-900/60 ring-1 ring-warning/20 text-warning-400',
   producto: 'bg-ink-900/60 ring-1 ring-tint/10 text-metal-300',
   objeciones: 'bg-ink-900/60 ring-1 ring-accent-500/20 text-accent-300',
+  formacion: 'bg-ink-900/60 ring-1 ring-violet-500/20 text-violet-400',
+  marketing: 'bg-ink-900/60 ring-1 ring-success-500/20 text-success-500',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ventas: 'Ventas',
+  cobranza: 'Cobranza',
+  producto: 'Producto',
+  objeciones: 'Objeciones',
+  formacion: 'Formación',
+  marketing: 'Marketing',
 };
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -46,6 +62,28 @@ function getBadgeIcon(name: string) {
 export function CursoTab() {
   const { progress } = useStore();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  // Con casi 40 cursos hace falta filtrar, si no la pantalla es un muro.
+  const [area, setArea] = useState<string>('todas');
+  const [busqueda, setBusqueda] = useState('');
+
+  const areas = useMemo(() => {
+    const set = new Set(COURSES.map((c) => c.area ?? 'Cursos del CRM'));
+    return ['todas', ...Array.from(set)];
+  }, []);
+
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return COURSES.filter((c) => {
+      const suArea = c.area ?? 'Cursos del CRM';
+      if (area !== 'todas' && suArea !== area) return false;
+      if (!q) return true;
+      return (
+        c.title.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q) ||
+        c.lessons.some((l) => l.title.toLowerCase().includes(q))
+      );
+    });
+  }, [area, busqueda]);
 
   const earnedBadges = useMemo(() => {
     const best = Math.max(0, ...progress.map((p) => p.bestScore));
@@ -100,9 +138,42 @@ export function CursoTab() {
         </div>
       </Card>
 
+      {/* Filtros */}
+      <Card className="p-3 space-y-3">
+        <div className="relative">
+          <Icons.Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar un curso o una lección..."
+            className="input pl-9"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {areas.map((a) => (
+            <button
+              key={a}
+              onClick={() => setArea(a)}
+              className={`chip transition-colors ${
+                area === a
+                  ? 'bg-accent-500/20 text-accent-200 ring-1 ring-accent-500/30'
+                  : 'bg-tint/5 text-slate-400 hover:text-metal-100'
+              }`}
+            >
+              {a === 'todas' ? 'Todas las áreas' : a}
+            </button>
+          ))}
+        </div>
+      </Card>
+
       {/* Courses */}
+      {visibles.length === 0 && (
+        <Card className="p-6">
+          <EmptyState icon={<BookOpen size={22} />} title="Ningún curso coincide" body="Prueba con otra palabra o cambia de área." />
+        </Card>
+      )}
       <div className="grid sm:grid-cols-2 gap-4">
-        {COURSES.map((c, i) => {
+        {visibles.map((c, i) => {
           const prog = progress.find((p) => p.courseId === c.id);
           const lessonsDone = prog?.completedLessons.length ?? 0;
           const pct = (lessonsDone / c.lessons.length) * 100;
@@ -118,9 +189,14 @@ export function CursoTab() {
                   <div className={`grid h-11 w-11 place-items-center rounded-xl ${CATEGORY_COLORS[c.category]}`}>
                     <GraduationCap size={20} />
                   </div>
-                  <span className="chip bg-tint/5 text-slate-400">
-                    {LEVEL_LABELS[c.level]}
-                  </span>
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    <span className={`chip ${CATEGORY_COLORS[c.category] ?? 'bg-tint/5 text-slate-400'}`}>
+                      {CATEGORY_LABELS[c.category] ?? c.category}
+                    </span>
+                    <span className="chip bg-tint/5 text-slate-400">
+                      {LEVEL_LABELS[c.level]}
+                    </span>
+                  </div>
                 </div>
                 <h3 className="mt-3 font-display text-base font-medium text-metal-100">{c.title}</h3>
                 <p className="mt-1 text-sm text-slate-400 leading-relaxed flex-1">{c.description}</p>
@@ -187,10 +263,12 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
     <Modal open={!!course} onClose={onClose} title={course.title} size="xl">
       <div className="space-y-4">
         {/* Mode toggle */}
-        <div className="flex gap-1 rounded-xl bg-ink-900/50 p-1">
+        {/* El currículo importado no trae evaluaciones: en esos cursos no se
+            muestra la pestaña de quiz y se aprueba leyendo las lecciones. */}
+        <div className={`flex gap-1 rounded-xl bg-ink-900/50 p-1 ${course.quiz ? '' : 'hidden'}`}>
           {([
             { id: 'lessons', label: `Lecciones (${course.lessons.length})` },
-            { id: 'quiz', label: `Quiz (${course.quiz.questions.length})` },
+            { id: 'quiz', label: `Quiz (${course.quiz?.questions.length ?? 0})` },
           ] as const).map((t) => (
             <button
               key={t.id}
@@ -237,9 +315,11 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
                 <h4 className="font-display text-lg font-medium text-metal-100">
                   {course.lessons[lessonIdx].title}
                 </h4>
-                <p className="mt-3 text-sm text-slate-300 leading-relaxed">
+                {/* El material importado trae secciones separadas por saltos
+                    de línea. Sin `whitespace-pre-line` se ve como un muro. */}
+                <div className="mt-3 space-y-2 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
                   {course.lessons[lessonIdx].body}
-                </p>
+                </div>
                 <div className="mt-4 rounded-xl bg-accent-500/10 p-3 ring-1 ring-accent-500/20">
                   <p className="text-xs uppercase tracking-wider text-accent-300">Idea clave</p>
                   <p className="mt-1 text-sm text-metal-100">{course.lessons[lessonIdx].keyTakeaway}</p>
@@ -270,14 +350,14 @@ function CoursePlayer({ course, onClose }: { course: Course | null; onClose: () 
               </button>
             </div>
           </div>
-        ) : (
+        ) : course.quiz ? (
           <QuizRunner
             questions={course.quiz.questions}
             bestScore={prog?.bestScore ?? 0}
             attempts={prog?.attempts ?? 0}
             onComplete={handleQuizComplete}
           />
-        )}
+        ) : null}
       </div>
     </Modal>
   );
