@@ -30,7 +30,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { useStore } from '../store';
-import type { Client, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure, TeamMember } from '../types';
+import type { Client, ClientItem, Product, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure, TeamMember } from '../types';
 import { CARACAS_MUNICIPALITIES } from '../data';
 import { printInvoice, printStatement } from '../lib/export';
 import {
@@ -79,7 +79,7 @@ const STATUSES: ClientStatus[] = [
 ];
 
 export function CrmTab({ initialClientId }: { initialClientId?: string | null }) {
-  const { clients, invoices, team, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
+  const { clients, invoices, team, products, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
   const toast = useToast();
   const [view, setView] = useState<'grid' | 'list' | 'map'>('grid');
   const [query, setQuery] = useState('');
@@ -296,6 +296,7 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
         onClose={() => { setFormOpen(false); setEditingClient(null); }}
         settings={settings}
         team={team}
+        products={products}
         onSave={async (data) => {
           // Si falla, el error sube al formulario: el modal se queda abierto
           // con los datos intactos y él muestra el aviso.
@@ -607,9 +608,133 @@ function ClientMap({ clients, onOpen }: { clients: Client[]; onOpen: (c: Client)
   );
 }
 
+// ---------- Artículos del crédito ----------
+
+/** Un artículo vacío listo para llenar. */
+function itemNuevo(): ClientItem {
+  return { id: crypto.randomUUID(), productId: null, name: '', quantity: 1, unitPrice: 0 };
+}
+
+export function totalItems(items: ClientItem[]): number {
+  return Math.round(items.reduce((a, i) => a + i.quantity * i.unitPrice, 0) * 100) / 100;
+}
+
+/** Resumen legible para listados y buscador: "Nevera LG + 2 artículos más". */
+export function resumenItems(items: ClientItem[]): string {
+  const conNombre = items.filter((i) => i.name.trim());
+  if (conNombre.length === 0) return '';
+  const primero = conNombre[0].name.trim();
+  const resto = conNombre.length - 1;
+  return resto > 0 ? `${primero} + ${resto} artículo${resto > 1 ? 's' : ''} más` : primero;
+}
+
+function ItemsEditor({ items, products, onChange }: {
+  items: ClientItem[];
+  products: Product[];
+  onChange: (items: ClientItem[]) => void;
+}) {
+  const set = (id: string, cambio: Partial<ClientItem>) =>
+    onChange(items.map((i) => (i.id === id ? { ...i, ...cambio } : i)));
+
+  /** Al elegir del inventario se copian nombre y precio final (con IVA y
+   *  descuento aplicados), que es lo que el cliente realmente paga. */
+  const elegirProducto = (id: string, productId: string) => {
+    const p = products.find((x) => x.id === productId);
+    if (!p) { set(id, { productId: null }); return; }
+    const precioFinal = Math.round(p.basePrice * (1 + p.taxPct / 100) * (1 - p.discountPct / 100) * 100) / 100;
+    set(id, { productId: p.id, name: p.name, unitPrice: precioFinal });
+  };
+
+  const total = totalItems(items);
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <label className="label mb-0">Artículos del crédito</label>
+        <button
+          type="button"
+          onClick={() => onChange([...items, itemNuevo()])}
+          className="btn-ghost px-2.5 py-1 text-xs"
+        >
+          <Plus size={13} /> Agregar artículo
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((it) => {
+          const sinStock = it.productId
+            ? (products.find((p) => p.id === it.productId)?.stock ?? 0) < it.quantity
+            : false;
+          return (
+            <div key={it.id} className="rounded-xl border border-tint/5 bg-ink-900/40 p-3">
+              <div className="flex gap-2">
+                <select
+                  className="input w-auto shrink-0"
+                  value={it.productId ?? ''}
+                  onChange={(e) => elegirProducto(it.id, e.target.value)}
+                  title="Tomar del inventario"
+                >
+                  <option value="">Escribir a mano</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <input
+                  className="input flex-1"
+                  placeholder="Nombre del artículo"
+                  value={it.name}
+                  onChange={(e) => set(it.id, { name: e.target.value, productId: null })}
+                />
+                <button
+                  type="button"
+                  onClick={() => onChange(items.filter((x) => x.id !== it.id))}
+                  disabled={items.length === 1}
+                  title="Quitar artículo"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger-400 disabled:opacity-30"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label text-[10px]">Cantidad</label>
+                  <NumberInput
+                    value={it.quantity}
+                    min={1}
+                    onChange={(v) => set(it.id, { quantity: Math.max(1, v) })}
+                  />
+                </div>
+                <div>
+                  <label className="label text-[10px]">Precio por unidad</label>
+                  <MoneyInput valueUsd={it.unitPrice} onChangeUsd={(v) => set(it.id, { unitPrice: v })} />
+                </div>
+              </div>
+
+              <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                <span className={sinStock ? 'text-warning-400' : 'text-slate-500'}>
+                  {sinStock ? 'Stock insuficiente en inventario' : ''}
+                </span>
+                <span className="num text-slate-300">
+                  {it.quantity} × {fmtMoney(it.unitPrice)} = {fmtMoney(it.quantity * it.unitPrice)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between rounded-xl bg-accent-500/10 px-3 py-2 ring-1 ring-accent-500/20">
+        <span className="text-sm text-metal-100">Total financiado</span>
+        <span className="num text-lg text-metal-100">{fmtMoney(total)}</span>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Client form ----------
 
-function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
+function ClientFormModal({ open, onClose, onSave, settings, team, editing, products }: {
   open: boolean;
   onClose: () => void;
   onSave: (data: Omit<Client, 'id' | 'createdAt' | 'bitacora'>) => void | Promise<void>;
@@ -618,6 +743,8 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
   /** Si viene un cliente, el formulario entra en modo edición: se rellena con
    *  sus datos y al guardar se actualiza en vez de crear uno nuevo. */
   editing?: Client | null;
+  /** Catálogo del Inventario, para elegir artículos con su precio ya cargado. */
+  products: Product[];
 }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
@@ -638,6 +765,7 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
     latitude: '' as string,
     longitude: '' as string,
   });
+  const [items, setItems] = useState<ClientItem[]>([itemNuevo()]);
   const [equalInstallments, setEqualInstallments] = useState(false);
   const [numInstallments, setNumInstallments] = useState(12);
   const [termMonths, setTermMonths] = useState(12);
@@ -669,6 +797,14 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
         latitude: editing.latitude != null ? String(editing.latitude) : '',
         longitude: editing.longitude != null ? String(editing.longitude) : '',
       });
+      // Clientes registrados antes de los artículos no tienen `items`: se
+      // reconstruye uno solo a partir del producto y el costo que sí tienen,
+      // para que la edición no los deje en blanco.
+      setItems(
+        editing.items && editing.items.length > 0
+          ? editing.items
+          : [{ id: crypto.randomUUID(), productId: null, name: editing.product, quantity: 1, unitPrice: editing.productCost }],
+      );
       // El plazo se guarda en meses con decimales (meses + semanas extra).
       setTermMonths(Math.floor(editing.termMonths));
       setExtraWeeks(Math.round((editing.termMonths % 1) * 4.345));
@@ -681,6 +817,11 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
       toast.error('El nombre y la cédula son obligatorios.');
       return;
     }
+    const itemsValidos = items.filter((i) => i.name.trim() && i.quantity > 0);
+    if (itemsValidos.length === 0) {
+      toast.error('Agrega al menos un artículo con nombre.');
+      return;
+    }
     const lat = form.latitude ? parseFloat(form.latitude) : null;
     const lng = form.longitude ? parseFloat(form.longitude) : null;
 
@@ -688,6 +829,11 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
     try {
       await onSave({
         ...form,
+        // El costo y la descripción ya no se escriben a mano: se derivan de
+        // los artículos, así nunca pueden contradecirse entre sí.
+        items: itemsValidos,
+        product: resumenItems(itemsValidos) || form.product,
+        productCost: totalItems(itemsValidos),
         termMonths: effectiveTerm,
         firstPaymentDate: form.firstPaymentDate || null,
         riskScore: 0,
@@ -699,6 +845,7 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
       // datos. Solo el alta vacía el formulario para el siguiente registro.
       if (!esEdicion) {
         setForm({ fullName: '', cedula: '', phone: '', email: '', municipality: 'chacao', address: '', product: '', productCost: 1000, downPaymentPct: 20, interestRate: 18, frequency: 'quincenal', termMonths: 12, status: 'activo', assignedAgent: 'Administrador', monthlyIncome: 1000, employmentTenure: '6m-1y', hasPhysicalId: true, firstPaymentDate: '', latitude: '', longitude: '' });
+        setItems([itemNuevo()]);
         setEqualInstallments(false);
         setNumInstallments(12);
         setTermMonths(12);
@@ -797,8 +944,13 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing }: {
         <div className="pt-2 border-t border-tint/5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Datos del crédito</p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <div><label className="label">Producto</label><input className="input" value={form.product} onChange={(e) => set('product', e.target.value)} /></div>
-            <div><label className="label">Costo del producto</label><MoneyInput valueUsd={form.productCost} onChangeUsd={(v) => set('productCost', v)} /></div>
+            <div className="sm:col-span-2">
+              <ItemsEditor
+                items={items}
+                products={products}
+                onChange={setItems}
+              />
+            </div>
             <div><label className="label">Inicial (%)</label><NumberInput value={form.downPaymentPct} onChange={(v) => set('downPaymentPct', v)} /></div>
             <div><label className="label">Tasa interés anual (%)</label><NumberInput value={form.interestRate} onChange={(v) => set('interestRate', v)} /></div>
             <div><label className="label">Frecuencia</label><select className="input" value={form.frequency} onChange={(e) => set('frequency', e.target.value as PaymentFrequency)}><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div>
@@ -1029,7 +1181,24 @@ function ClientDetailModal({
               <InfoRow icon={<Mail size={13} />} label="Email" value={client.email} />
               <InfoRow icon={<MapPin size={13} />} label="Municipio" value={MUNI_LABELS[client.municipality]} />
               <InfoRow icon={<MapPin size={13} />} label="Dirección" value={client.address} />
-              <InfoRow label="Producto" value={client.product} />
+              {client.items && client.items.length > 0 ? (
+                <div className="sm:col-span-2">
+                  <p className="kicker mb-1.5">Artículos financiados</p>
+                  <div className="space-y-1">
+                    {client.items.map((it) => (
+                      <div key={it.id} className="flex items-center justify-between rounded-lg bg-ink-900/40 px-2.5 py-1.5 text-xs">
+                        <span className="truncate text-metal-100">
+                          {it.quantity > 1 && <span className="text-slate-500">{it.quantity}× </span>}
+                          {it.name}
+                        </span>
+                        <span className="num shrink-0 text-slate-300">{fmtMoney(it.quantity * it.unitPrice)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <InfoRow label="Producto" value={client.product} />
+              )}
               <InfoRow label="Costo" value={fmtMoney(client.productCost)} />
               <InfoRow label="Inicial" value={`${client.downPaymentPct}% (${fmtMoney(client.productCost * client.downPaymentPct / 100)})`} />
               <InfoRow label="Tasa anual" value={`${client.interestRate}%`} />

@@ -59,8 +59,15 @@ export interface Client {
   email: string;
   municipality: Municipality;
   address: string;
+  /** Resumen legible de lo financiado ("Nevera LG + 2 artículos más").
+   *  Se deriva de `items`; se conserva para listados, búsquedas y exportes. */
   product: string;
+  /** Total financiado = suma de cantidad × precio de cada artículo. */
   productCost: number;
+  /** Artículos del crédito. Puede ser uno solo o varios, cada uno con su
+   *  cantidad. Si viene vacío, el crédito es de un solo artículo descrito
+   *  en `product` (clientes registrados antes de que existieran los ítems). */
+  items?: ClientItem[];
   downPaymentPct: number; // %
   interestRate: number; // annual %
   frequency: PaymentFrequency;
@@ -277,6 +284,17 @@ export interface Invoice {
 }
 
 // ---------------- Inventario ----------------
+
+/** Una línea del crédito: qué se vendió, cuántas unidades y a qué precio. */
+export interface ClientItem {
+  id: string;
+  /** Id del producto del Inventario, si salió de ahí. Vacío si se escribió a mano. */
+  productId?: string | null;
+  name: string;
+  quantity: number;
+  /** Precio por unidad, en dólares (la moneda interna del CRM). */
+  unitPrice: number;
+}
 
 export interface Product {
   id: string;

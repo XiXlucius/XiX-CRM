@@ -20,7 +20,7 @@ import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 
 export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId: string) => void }) {
-  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice, deleteInvoice, updateInvoiceDueDate } = useStore();
+  const { invoices: rawInvoices, clients, markInvoicePaid, addInvoice, deleteInvoice, updateInvoiceDueDate, templates, sendWhatsApp } = useStore();
   const toast = useToast();
   const role = useCurrentRole();
   const canDelete = role.id === 'admin';
@@ -266,6 +266,8 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
         onPay={handlePay}
         onDelete={canDelete ? (inv) => setConfirmDelete(inv) : undefined}
         onChangeDate={canDelete ? openDateEdit : undefined}
+        templates={templates}
+        onSendWhatsApp={sendWhatsApp}
       />
 
       <Modal open={!!dateEdit} onClose={() => setDateEdit(null)} title="Cambiar fecha de cobro" size="sm">

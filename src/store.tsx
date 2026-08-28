@@ -155,6 +155,7 @@ const mapClient = (r: Record<string, unknown>): Client => ({
   firstPaymentDate: (r.first_payment_date as string | null) ?? null,
   latitude: (r.latitude as number | null) ?? null,
   longitude: (r.longitude as number | null) ?? null,
+  items: Array.isArray(r.items) ? (r.items as Client['items']) : undefined,
 });
 
 const mapDocument = (r: Record<string, unknown>): ClientDocument => ({
@@ -595,6 +596,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       first_payment_date: c.firstPaymentDate ?? null,
       latitude: c.latitude ?? null,
       longitude: c.longitude ?? null,
+      items: c.items ?? null,
     };
     const { data, error } = await supabase.from('clients').insert(row).select('*').single();
     if (error) throw error;
@@ -643,6 +645,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.firstPaymentDate !== undefined) dbPatch.first_payment_date = patch.firstPaymentDate;
     if (patch.latitude !== undefined) dbPatch.latitude = patch.latitude;
     if (patch.longitude !== undefined) dbPatch.longitude = patch.longitude;
+    if (patch.items !== undefined) dbPatch.items = patch.items;
 
     // Recalcular el score si cambió algo que lo afecta. Antes solo se guardaba
     // risk_score si el llamador lo pasaba explícito, así que editar el ingreso o

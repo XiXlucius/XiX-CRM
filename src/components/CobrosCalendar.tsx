@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, AlertTriangle, CalendarClock, X, ArrowRight, CircleDot } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CalendarClock, X, ArrowRight, CircleDot, Send } from 'lucide-react';
 import type { Invoice, Client } from '../types';
 import { Card, fmtMoney } from './ui';
 import { isOverdue } from '../lib/aging';
 import { formatMoney } from '../lib/currency';
+import { fillTemplate } from '../lib/templates';
+import type { MessageTemplate } from '../types';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MONTHS = [
@@ -33,11 +35,15 @@ interface CobrosCalendarProps {
   onPay?: (invoiceId: string) => void;
   onDelete?: (invoice: Invoice) => void;
   onChangeDate?: (invoice: Invoice) => void;
+  /** Plantillas de mensaje configuradas, para avisar desde el propio día. */
+  templates?: MessageTemplate[];
+  onSendWhatsApp?: (phone: string, message: string) => Promise<void>;
 }
 
 export function CobrosCalendar({
   invoices, clients, onSelectClient,
   payingId, onPay, onDelete, onChangeDate,
+  templates, onSendWhatsApp,
 }: CobrosCalendarProps) {
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -174,6 +180,8 @@ export function CobrosCalendar({
         onPay={onPay}
         onDelete={onDelete}
         onChangeDate={onChangeDate}
+        templates={templates}
+        onSendWhatsApp={onSendWhatsApp}
       />
     </div>
   );
@@ -262,7 +270,7 @@ function DayCell({ day, onClick }: { day: DayCobros; onClick: () => void }) {
 
 // ---------- Day detail modal ----------
 
-function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelete, onChangeDate }: {
+function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelete, onChangeDate, templates, onSendWhatsApp }: {
   day: DayCobros | null;
   onClose: () => void;
   onSelectClient: (clientId: string) => void;
@@ -270,14 +278,62 @@ function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelet
   onPay?: (invoiceId: string) => void;
   onDelete?: (invoice: Invoice) => void;
   onChangeDate?: (invoice: Invoice) => void;
+  templates?: MessageTemplate[];
+  onSendWhatsApp?: (phone: string, message: string) => Promise<void>;
 }) {
   // La tarjeta de la cuota sale al tocar el nombre del cliente, no antes.
   const [detalle, setDetalle] = useState<{ invoice: Invoice; client: Client | undefined } | null>(null);
+  const [avisando, setAvisando] = useState(false);
+  const [plantillaId, setPlantillaId] = useState('');
+  const [resultado, setResultado] = useState<string | null>(null);
 
-  useEffect(() => { setDetalle(null); }, [day]);
+  useEffect(() => { setDetalle(null); setResultado(null); }, [day]);
+
+  const plantillasWa = (templates ?? []).filter((t) => t.channel === 'whatsapp');
+  const puedeAvisar = !!onSendWhatsApp && plantillasWa.length > 0;
 
   if (!day) return null;
   const dateLabel = day.date.toLocaleDateString('es-VE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+  const items = [...day.morosidad, ...day.regulares];
+  // Personas, no cuotas: un cliente puede tener dos cuotas el mismo día y
+  // decir "2 personas pagan" cuando es una sola sería engañoso.
+  const personas = new Set(items.map((i) => i.invoice.clientId || i.invoice.clientName)).size;
+
+  /** Manda el recordatorio a todos los del día que tengan teléfono. */
+  const avisarATodos = async () => {
+    if (!onSendWhatsApp) return;
+    const plantilla = plantillasWa.find((t) => t.id === plantillaId);
+    if (!plantilla) return;
+
+    setAvisando(true);
+    let enviados = 0;
+    let sinTelefono = 0;
+    try {
+      for (const { invoice, client } of items) {
+        const tel = client?.phone?.trim();
+        if (!tel) { sinTelefono++; continue; }
+        const mensaje = fillTemplate(plantilla.body, {
+          nombre: invoice.clientName,
+          producto: client?.product,
+          cuota: fmtMoney(invoice.amount),
+          fecha: new Date(invoice.dueDate).toLocaleDateString('es-VE', { day: '2-digit', month: 'long' }),
+          detalle: invoice.isDownPayment
+            ? 'Inicial'
+            : `Cuota ${invoice.installmentNumber} de ${invoice.totalInstallments}`,
+        });
+        await onSendWhatsApp(tel, mensaje);
+        enviados++;
+      }
+      setResultado(
+        `Enviados ${enviados}${sinTelefono > 0 ? ` · ${sinTelefono} sin teléfono` : ''}`,
+      );
+    } catch {
+      setResultado(`Se enviaron ${enviados} y falló el resto. Revisa la conexión.`);
+    } finally {
+      setAvisando(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -311,7 +367,9 @@ function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelet
                   {detalle ? detalle.invoice.clientName : dateLabel}
                 </p>
                 <p className="truncate text-xs text-slate-500">
-                  {detalle ? dateLabel : `${day.total} cobros · ${fmtMoney(day.total)}`}
+                  {detalle
+                    ? dateLabel
+                    : `${personas} ${personas === 1 ? 'persona paga' : 'personas pagan'} · ${fmtMoney(day.total)}`}
                 </p>
               </div>
             </div>
@@ -323,6 +381,10 @@ function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelet
           {detalle ? (
             <InvoiceDetail
               invoice={detalle.invoice}
+              telefono={detalle.client?.phone}
+              producto={detalle.client?.product}
+              templates={plantillasWa}
+              onSendWhatsApp={onSendWhatsApp}
               paying={payingId === detalle.invoice.id}
               onPay={onPay ? () => onPay(detalle.invoice.id) : undefined}
               onDelete={onDelete ? () => { onDelete(detalle.invoice); onClose(); } : undefined}
@@ -333,6 +395,38 @@ function DayDetailModal({ day, onClose, onSelectClient, payingId, onPay, onDelet
             />
           ) : (
             <div className="flex-1 overflow-y-auto divide-y divide-tint/5">
+              {/* Aviso masivo a todos los que cobran ese día. Las plantillas se
+                  escriben en el CRM; aquí solo se eligen y se mandan. */}
+              {puedeAvisar && (
+                <div className="px-5 py-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Avisar por WhatsApp
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      className="input w-auto flex-1"
+                      value={plantillaId}
+                      onChange={(e) => { setPlantillaId(e.target.value); setResultado(null); }}
+                    >
+                      <option value="">Elige una plantilla…</option>
+                      {plantillasWa.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={avisarATodos}
+                      disabled={!plantillaId || avisando}
+                      className="btn-primary text-xs disabled:opacity-50"
+                    >
+                      {avisando ? <CircleDot size={13} className="animate-spin" /> : <Send size={13} />}
+                      Enviar a los {personas}
+                    </button>
+                  </div>
+                  {resultado && (
+                    <p className="mt-2 text-xs text-success-500">{resultado}</p>
+                  )}
+                </div>
+              )}
               <DaySection
                 title="Cobros de Morosidad"
                 icon={<AlertTriangle size={14} />}
@@ -425,16 +519,49 @@ function DaySection({ title, icon, count, total, accent, items, onPick }: {
 /** Tarjeta de una cuota: sale al tocar el nombre del cliente dentro de un día.
  *  Las acciones que no se pasan simplemente no se dibujan (borrar y cambiar
  *  fecha son solo del administrador). */
-function InvoiceDetail({ invoice, paying, onPay, onDelete, onChangeDate, onOpenClient }: {
+function InvoiceDetail({ invoice, paying, onPay, onDelete, onChangeDate, onOpenClient, telefono, producto, templates, onSendWhatsApp }: {
   invoice: Invoice;
   paying?: boolean;
   onPay?: () => void;
   onDelete?: () => void;
   onChangeDate?: () => void;
   onOpenClient: () => void;
+  telefono?: string;
+  producto?: string;
+  templates?: MessageTemplate[];
+  onSendWhatsApp?: (phone: string, message: string) => Promise<void>;
 }) {
   const vencida = isOverdue(invoice);
   const pagada = invoice.status === 'pagada';
+
+  const [plantillaId, setPlantillaId] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const puedeAvisar = !!onSendWhatsApp && (templates?.length ?? 0) > 0;
+
+  const avisar = async () => {
+    const plantilla = templates?.find((t) => t.id === plantillaId);
+    if (!plantilla || !onSendWhatsApp) return;
+    if (!telefono?.trim()) { setAviso('Este cliente no tiene teléfono cargado.'); return; }
+    setEnviando(true);
+    try {
+      await onSendWhatsApp(telefono.trim(), fillTemplate(plantilla.body, {
+        nombre: invoice.clientName,
+        producto,
+        cuota: fmtMoney(invoice.amount),
+        fecha: new Date(invoice.dueDate).toLocaleDateString('es-VE', { day: '2-digit', month: 'long' }),
+        detalle: invoice.isDownPayment
+          ? 'Inicial'
+          : `Cuota ${invoice.installmentNumber} de ${invoice.totalInstallments}`,
+      }));
+      setAviso('Mensaje enviado');
+    } catch {
+      setAviso('No se pudo enviar. Revisa la conexión.');
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -478,6 +605,28 @@ function InvoiceDetail({ invoice, paying, onPay, onDelete, onChangeDate, onOpenC
           </button>
         )}
       </div>
+
+      {puedeAvisar && (
+        <div className="border-t border-tint/5 pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Avisar por WhatsApp
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="input w-auto flex-1"
+              value={plantillaId}
+              onChange={(e) => { setPlantillaId(e.target.value); setAviso(null); }}
+            >
+              <option value="">Elige una plantilla…</option>
+              {templates?.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button onClick={avisar} disabled={!plantillaId || enviando} className="btn-primary text-xs disabled:opacity-50">
+              {enviando ? <CircleDot size={13} className="animate-spin" /> : <Send size={13} />} Enviar
+            </button>
+          </div>
+          {aviso && <p className="mt-2 text-xs text-slate-400">{aviso}</p>}
+        </div>
+      )}
     </div>
   );
 }

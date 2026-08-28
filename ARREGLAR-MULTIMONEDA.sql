@@ -68,4 +68,19 @@ ALTER TABLE partial_payments
 ALTER TABLE partial_payments
   ADD COLUMN IF NOT EXISTS exchange_rate_used numeric(20,6);
 
+-- ------------------------------------------------------------
+-- Articulos del credito.
+-- Antes un cliente financiaba UN producto descrito en texto. Ahora
+-- puede llevarse varias cosas, cada una con su cantidad y precio.
+-- Se guarda como jsonb y no en tabla aparte a proposito: los
+-- articulos solo se leen junto con su cliente, nunca por separado.
+--
+-- `product` y `product_cost` se conservan: el primero como resumen
+-- legible y el segundo como total, para no romper listados,
+-- busquedas ni los clientes ya registrados.
+-- ------------------------------------------------------------
+
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS items jsonb;
+
 NOTIFY pgrst, 'reload schema';
