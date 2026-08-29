@@ -108,7 +108,14 @@ export function Modal({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Sin esto, en el teléfono la página de atrás sigue desplazándose por
+    // debajo de la hoja y el modal parece "saltar".
+    const scrollPrevio = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = scrollPrevio;
+    };
   }, [open, onClose]);
 
   const sizes = {
@@ -134,12 +141,18 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-            className={`relative w-full ${sizes[size]} card max-h-[92vh] overflow-y-auto rounded-b-none sm:rounded-b-2xl sm:max-h-[90vh]`}
+            /* `dvh` y no `vh`: en el teléfono `vh` mide la pantalla SIN la barra
+               de direcciones, así que la hoja se salía por debajo y dejaba un
+               hueco negro enorme arriba. `dvh` sigue el alto realmente visible. */
+            className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden ${sizes[size]} card rounded-b-none sm:max-h-[90vh] sm:rounded-b-2xl`}
           >
             {/* Subtle top gradient line */}
             <div className="absolute top-0 left-6 right-6 h-px z-20 bg-gradient-to-r from-transparent via-accent-500/30 to-transparent" />
+            {/* Agarradera: le dice al usuario que esto es una hoja que sube
+                desde abajo, no una ventana rota. Solo en teléfono. */}
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-tint/15 sm:hidden" />
             {/* Encabezado sticky: el botón de cerrar siempre queda visible aunque el contenido sea largo */}
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-[var(--color-surface)] px-4 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+            <div className="z-10 flex shrink-0 items-center justify-between bg-[var(--color-surface)] px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
               <h3 className="font-display text-lg font-medium text-metal-100">
                 {title}
               </h3>
@@ -150,7 +163,7 @@ export function Modal({
                 <X size={18} />
               </button>
             </div>
-            <div className="px-4 pb-6 sm:px-6">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 sm:px-6">
               {children}
             </div>
           </motion.div>

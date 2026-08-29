@@ -19,7 +19,7 @@ if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 if exist ".git\config.lock" del /f /q ".git\config.lock" >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Varios articulos por credito con cantidades desde Inventario, calendario con avisos, editar clientes" >> "%LOG%" 2>&1
+git commit -m "Movil: hoja de modal con dvh y sin fondo desplazable; boton de registrar pago en la ficha" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

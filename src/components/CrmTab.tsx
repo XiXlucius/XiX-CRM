@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import {
   Users,
   Pencil,
+  CheckCircle2,
   LayoutGrid,
   List,
   Plus,
@@ -33,6 +34,7 @@ import { useStore } from '../store';
 import type { Client, ClientItem, Product, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure, TeamMember } from '../types';
 import { CARACAS_MUNICIPALITIES } from '../data';
 import { printInvoice, printStatement } from '../lib/export';
+import { isOverdue } from '../lib/aging';
 import {
   Card,
   SectionHeader,
@@ -79,7 +81,7 @@ const STATUSES: ClientStatus[] = [
 ];
 
 export function CrmTab({ initialClientId }: { initialClientId?: string | null }) {
-  const { clients, invoices, team, products, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
+  const { clients, invoices, team, products, markInvoicePaid, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
   const toast = useToast();
   const [view, setView] = useState<'grid' | 'list' | 'map'>('grid');
   const [query, setQuery] = useState('');
@@ -104,6 +106,21 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
   useEffect(() => {
     applyLateFees();
   }, [applyLateFees]);
+
+  /** Cobrar la cuota que toca, desde la ficha del cliente. Es la acción más
+   *  frecuente en la calle y estaba enterrada en la pestaña de Pagos. */
+  const [cobrando, setCobrando] = useState(false);
+  const handleCobrar = async (invoiceId: string) => {
+    setCobrando(true);
+    try {
+      await markInvoicePaid(invoiceId);
+      toast.success('Pago registrado');
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setCobrando(false);
+    }
+  };
 
   /** Cambiar el estado desde la lista, sin abrir la ficha. */
   const handleStatusChange = async (clientId: string, status: ClientStatus) => {
@@ -339,6 +356,8 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
         }}
         onGenerateSchedule={handleGenerate}
         onEdit={() => { if (selected) { setEditingClient(selected); setFormOpen(true); } }}
+        onCobrar={handleCobrar}
+        cobrando={cobrando}
         generating={generating}
         documents={selected ? documents.filter((d) => d.clientId === selected.id) : []}
         partialPayments={selected ? partialPayments.filter((p) => invoices.some((i) => i.id === p.invoiceId && i.clientId === selected.id)) : []}
@@ -1046,7 +1065,7 @@ function ClientFormModal({ open, onClose, onSave, settings, team, editing, produ
 // ---------- Client detail + tabs ----------
 
 function ClientDetailModal({
-  client, onClose, onUpdate, onAddNote, onGenerateSchedule, generating, onEdit,
+  client, onClose, onUpdate, onAddNote, onGenerateSchedule, generating, onEdit, onCobrar, cobrando,
   documents, partialPayments, renegotiations, lateFees, invoices, templates,
   onUploadDoc, onDeleteDoc, onAddPartialPayment, onAddRenegotiation, onSendWhatsApp,
 }: {
@@ -1057,6 +1076,9 @@ function ClientDetailModal({
   onGenerateSchedule: (clientId: string) => void;
   /** Abre el formulario completo con los datos del cliente cargados. */
   onEdit?: () => void;
+  /** Marca como pagada la cuota que toca cobrar. */
+  onCobrar?: (invoiceId: string) => void;
+  cobrando?: boolean;
   generating: string | null;
   documents: ClientDocument[];
   partialPayments: PartialPayment[];
@@ -1117,6 +1139,16 @@ function ClientDetailModal({
     }
   };
 
+  // La cuota que toca cobrar: la más próxima sin pagar. Las vencidas van
+  // primero porque están ordenadas por fecha de vencimiento.
+  const proximaCuota = useMemo(
+    () =>
+      [...invoices]
+        .filter((i) => i.status !== 'pagada')
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0],
+    [invoices],
+  );
+
   const totalLateFees = lateFees.reduce((a, f) => a + f.amount, 0);
   const totalPartial = partialPayments.reduce((a, p) => a + p.amount, 0);
 
@@ -1140,6 +1172,44 @@ function ClientDetailModal({
             </span>
           )}
         </div>
+
+        {/* Cobro rápido: la cuota más próxima sin pagar, con su botón. Es lo
+            primero que necesita un cobrador al abrir a un cliente en la calle. */}
+        {proximaCuota && onCobrar && (
+          <div className={`rounded-xl border p-3 ${
+            isOverdue(proximaCuota)
+              ? 'border-danger/30 bg-danger/5'
+              : 'border-success-500/25 bg-success/5'
+          }`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wider text-slate-500">
+                  {isOverdue(proximaCuota) ? 'Cuota vencida' : 'Próxima cuota'}
+                </p>
+                <p className="num text-xl text-metal-100">{fmtMoney(proximaCuota.amount)}</p>
+                <p className="text-[11px] text-slate-500">
+                  {proximaCuota.isDownPayment
+                    ? 'Inicial'
+                    : `Cuota ${proximaCuota.installmentNumber} de ${proximaCuota.totalInstallments}`}
+                  {' · vence '}{fmtDate(proximaCuota.dueDate)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => onCobrar(proximaCuota.id)}
+                  disabled={cobrando}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  {cobrando ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Registrar pago
+                </button>
+                <button onClick={() => setPartialOpen(proximaCuota.id)} className="btn-ghost">
+                  Abono parcial
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {canGenerate && (
           <div className="rounded-xl border border-accent-500/20 bg-accent-500/5 p-3 flex items-center justify-between">
