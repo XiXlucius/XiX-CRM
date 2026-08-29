@@ -40,7 +40,7 @@ import {
   printStatement,
 } from '../lib/export';
 import { Card, SectionHeader, fmtMoney, fmtPct, fmtDate } from './ui';
-import { daysOverdue, invoiceBalance } from '../lib/aging';
+import { daysOverdue, invoiceBalance, parseLocalDate } from '../lib/aging';
 
 const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -111,7 +111,7 @@ export function ReportesTab() {
       const monthName = MONTHS_ES[target.getMonth()];
       let esperado = 0;
       invoices.filter((i) => i.status !== 'pagada').forEach((inv) => {
-        const due = new Date(inv.dueDate);
+        const due = parseLocalDate(inv.dueDate);
         if (due.getMonth() === target.getMonth() && due.getFullYear() === target.getFullYear()) {
           esperado += inv.amount;
         }

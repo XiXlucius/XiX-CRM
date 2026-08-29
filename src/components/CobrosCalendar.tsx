@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, AlertTriangle, CalendarClock, X, ArrowRight, CircleDot, Send } from 'lucide-react';
 import type { Invoice, Client } from '../types';
 import { Card, fmtMoney } from './ui';
-import { isOverdue } from '../lib/aging';
+import { isOverdue, dayKey } from '../lib/aging';
 import { formatMoney } from '../lib/currency';
 import { fillTemplate } from '../lib/templates';
 import type { MessageTemplate } from '../types';
@@ -61,8 +61,9 @@ export function CobrosCalendar({
   const byDay = useMemo(() => {
     const map = new Map<string, { invoice: Invoice; client: Client | undefined }[]>();
     invoices.forEach((inv) => {
-      const d = new Date(inv.dueDate);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      // `dayKey` interpreta la fecha en hora local. Con `new Date(...)` a secas
+      // las cuotas caían un día antes en el calendario.
+      const key = dayKey(inv.dueDate);
       const arr = map.get(key) ?? [];
       arr.push({ invoice: inv, client: clientMap.get(inv.clientId) });
       map.set(key, arr);

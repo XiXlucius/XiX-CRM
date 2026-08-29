@@ -29,7 +29,7 @@ import { supabase } from './lib/supabase';
 import { useOrg } from './context/OrgContext';
 import { logAudit } from './lib/audit';
 import { assessRisk, DEFAULT_SETTINGS, type BusinessSettings } from './lib/scoring';
-import { isOverdue, daysOverdue, effectiveClientStatus } from './lib/aging';
+import { isOverdue, daysOverdue, effectiveClientStatus, parseLocalDate, toStoredDueDate } from './lib/aging';
 
 /**
  * Fecha en que se activaron las multas automáticas por atraso.
@@ -849,7 +849,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const today = new Date();
     // Anchor date: the first cobro date the salesperson picked.
     // Falls back to today if none was set.
-    const anchor = client.firstPaymentDate ? new Date(client.firstPaymentDate) : today;
+    // `new Date('2026-09-10')` es medianoche UTC = 9 de septiembre 20:00 en
+    // Caracas. Anclaba todo el plan un día antes. Ver src/lib/aging.ts.
+    const anchor = client.firstPaymentDate ? parseLocalDate(client.firstPaymentDate) : today;
     // Down payment invoice (due today, separate from the installment plan)
     const downAmount = client.productCost * (client.downPaymentPct / 100);
     const invoicesToInsert: Record<string, unknown>[] = [];
@@ -860,7 +862,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         client_id: clientId,
         client_name: client.fullName,
         amount: round2(downAmount),
-        due_date: today.toISOString(),
+        due_date: toStoredDueDate(today),
         status: 'pendiente',
         is_down_payment: true,
         installment_number: 1,
@@ -875,7 +877,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         client_id: clientId,
         client_name: client.fullName,
         amount: row.payment,
-        due_date: due.toISOString(),
+        due_date: toStoredDueDate(due),
         status: 'pendiente',
         is_down_payment: false,
         installment_number: i + 1,
@@ -1286,7 +1288,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // el sistema no asigna nunca — por eso NINGÚN cliente recibió jamás un recargo
       // automático, aunque la app dijera que se aplicaban solos.
       if (!isOverdue(inv)) continue;
-      const dueMs = new Date(inv.dueDate).getTime();
+      const dueMs = parseLocalDate(inv.dueDate).getTime();
       const daysLate = daysOverdue(inv);
       if (daysLate <= GRACE_DAYS) continue;
       const weeksLate = Math.floor((daysLate - GRACE_DAYS) / 7);

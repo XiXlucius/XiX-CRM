@@ -1,7 +1,7 @@
 // Ruta de cobro del día — ordenamiento por cercanía (vecino más cercano), no navegación
 // turn-by-turn. Ver HANDOFF-RUTA-COBRO.md para el alcance completo.
 import type { Client, Invoice } from '../types';
-import { isOverdue } from './aging';
+import { isOverdue, parseLocalDate } from './aging';
 
 export interface LatLng { lat: number; lng: number }
 
@@ -61,7 +61,7 @@ export function getTodayRouteInvoices(invoices: Invoice[], agent: string | 'all'
     const client = clientById.get(inv.clientId);
     if (agent !== 'all' && client?.assignedAgent !== agent) return false;
     if (isOverdue(inv, now)) return true;
-    if (inv.status === 'pendiente') return new Date(inv.dueDate).toDateString() === todayKey;
+    if (inv.status === 'pendiente') return parseLocalDate(inv.dueDate).toDateString() === todayKey;
     return false;
   });
 }

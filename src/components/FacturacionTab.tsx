@@ -14,7 +14,7 @@ import {
 import { useStore, useCurrentRole } from '../store';
 import type { Invoice, InvoiceStatus, Permission } from '../types';
 import { Card, SectionHeader, Modal, EmptyState, fmtMoney, fmtDate, DatePicker, NumberInput } from './ui';
-import { effectiveStatus } from '../lib/aging';
+import { effectiveStatus, parseLocalDate, toStoredDueDate } from '../lib/aging';
 import { CobrosCalendar } from './CobrosCalendar';
 import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
@@ -85,10 +85,7 @@ export function FacturacionTab({ onSelectClient }: { onSelectClient?: (clientId:
     if (!dateEdit || !newDate) return;
     setSavingDate(true);
     try {
-      // Se ancla a mediodía local para que ningún huso horario la corra un día.
-      const [y, m, d] = newDate.split('-').map(Number);
-      const iso = new Date(y, m - 1, d, 12, 0, 0).toISOString();
-      await updateInvoiceDueDate(dateEdit.id, iso);
+      await updateInvoiceDueDate(dateEdit.id, toStoredDueDate(parseLocalDate(newDate)));
       toast.success('Fecha de cobro actualizada');
       setDateEdit(null);
     } catch (err) {
@@ -407,7 +404,8 @@ function InvoiceFormModal({
         clientId: form.clientId,
         clientName: client.fullName,
         amount: form.amount,
-        dueDate: new Date(form.dueDate).toISOString(),
+        // Se ancla a mediodía local: guardarla a medianoche la corría un día.
+        dueDate: toStoredDueDate(parseLocalDate(form.dueDate)),
         paidDate: null,
         status: 'pendiente',
         isDownPayment: form.isDownPayment,

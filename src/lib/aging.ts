@@ -34,6 +34,35 @@ function startOfDay(d: Date): number {
  * todas las facturas se veían un día más vencidas de lo que estaban y una que
  * vencía hoy aparecía como vencida. El cobrador saldría a visitar un día antes.
  */
+/**
+ * Convierte una fecha guardada a un `Date` en hora LOCAL.
+ *
+ * `new Date('2026-09-10')` devuelve medianoche **UTC**, que en Venezuela
+ * (UTC−4) es el 9 de septiembre a las 20:00. Por eso las cuotas aparecían
+ * un día antes en el calendario. Aquí se construye la fecha componente a
+ * componente, que sí respeta el día que el usuario eligió.
+ */
+export function parseLocalDate(s: string): Date {
+  return parseDueDate(s);
+}
+
+/**
+ * Ancla una fecha a las 12:00 locales antes de guardarla.
+ * A mediodía ningún huso horario (±12h) ni cambio de horario de verano puede
+ * correrla de día, que es exactamente lo que pasaba anclando a medianoche.
+ */
+export function toStoredDueDate(fecha: Date): string {
+  return new Date(
+    fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 12, 0, 0,
+  ).toISOString();
+}
+
+/** Clave estable de día para agrupar cuotas en el calendario. */
+export function dayKey(iso: string): string {
+  const d = parseDueDate(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 function parseDueDate(s: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
