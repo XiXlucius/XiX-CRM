@@ -413,6 +413,41 @@ body::before {
     color: var(--color-neutral-500);
   }
 
+  /* ── Chip — píldora de estado ("Activo", "En mora", "Vencida"…) ──
+     Nunca había estado definida: las etiquetas heredaban solo el color y el
+     anillo, y salían como un recuadro pegado al texto en vez de una píldora.
+     Fuente redonda (Quicksand), tamaño pequeño y un halo neón breve. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 9999px;
+    padding: 2px 9px;
+    font-family: 'Quicksand', 'Inter', system-ui, sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.5;
+    white-space: nowrap;
+    /* El halo usa el propio color del estado: verde en activo, rojo en mora. */
+    text-shadow: 0 0 8px color-mix(in srgb, currentColor calc(55% * var(--neon)), transparent);
+    box-shadow: 0 0 9px -3px color-mix(in srgb, currentColor calc(70% * var(--neon)), transparent);
+    animation: chipNeon 1.6s ease-out 1;
+  }
+
+  /* Destello breve al aparecer: sube y se apaga. No se repite, para que la
+     lista de clientes no quede parpadeando. */
+  @keyframes chipNeon {
+    0%   { box-shadow: 0 0 0 -3px transparent; }
+    22%  { box-shadow: 0 0 16px -2px color-mix(in srgb, currentColor calc(85% * var(--neon)), transparent); }
+    100% { box-shadow: 0 0 9px -3px color-mix(in srgb, currentColor calc(70% * var(--neon)), transparent); }
+  }
+
+  /* Quien pidió menos movimiento en su sistema ve el halo fijo, sin destello. */
+  @media (prefers-reduced-motion: reduce) {
+    .chip { animation: none; }
+  }
+
   /* ── Badge — mismo rol semántico, paleta desaturada ── */
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;

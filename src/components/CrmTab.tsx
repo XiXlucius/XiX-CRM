@@ -355,7 +355,14 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
           }
         }}
         onGenerateSchedule={handleGenerate}
-        onEdit={() => { if (selected) { setEditingClient(selected); setFormOpen(true); } }}
+        onEdit={() => {
+          if (!selected) return;
+          // Hay que cerrar la ficha: si no, se queda encima del formulario y
+          // parece que "Editar" no hizo nada hasta cerrarla a mano.
+          setEditingClient(selected);
+          setSelected(null);
+          setFormOpen(true);
+        }}
         onCobrar={handleCobrar}
         cobrando={cobrando}
         generating={generating}
