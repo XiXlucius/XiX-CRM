@@ -1132,7 +1132,16 @@ function ClientDetailModal({
     setNote('');
   };
 
-  const canGenerate = client.status === 'aprobado' || client.status === 'prospecto' || client.status === 'en_revision';
+  // Se puede generar el cronograma si el cliente aún no tiene cuotas.
+  //
+  // Antes esto dependía solo del estado, y dejaba un callejón sin salida: un
+  // cliente en 'activo' creado antes de la generación automática se quedaba
+  // SIN cuotas y SIN botón para crearlas, así que tampoco había nada que
+  // marcar como pagado. Ahora manda el dato real: si no hay cuotas, se ofrece
+  // generarlas (salvo que el crédito esté rechazado).
+  const sinCuotas = invoices.length === 0;
+  const canGenerate =
+    sinCuotas && client.status !== 'rechazado';
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1219,6 +1228,15 @@ function ClientDetailModal({
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Sin esto, un cliente con todo pagado mostraba un hueco en blanco y
+            parecía que el botón de cobrar se había perdido. */}
+        {!sinCuotas && !proximaCuota && (
+          <div className="rounded-xl border border-success-500/25 bg-success/5 p-3 flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-success-400" />
+            <p className="text-sm text-metal-100">Todas las cuotas están pagadas.</p>
           </div>
         )}
 
