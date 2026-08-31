@@ -95,7 +95,23 @@ y `store.tsx:1289`.
 
 ## Fase 4 — Reparar los datos ya guardados
 
-Las cuotas existentes están corridas. Script SQL, **con verificación previa**:
+> **RESUELTO SIN SQL.** No hace falta ejecutar nada en la base.
+>
+> Las cuotas viejas se guardaron con `new Date('YYYY-MM-DD').toISOString()`,
+> es decir **medianoche UTC exacta**. Las nuevas se anclan a las 12:00 locales,
+> que nunca caen en medianoche UTC. Ese patrón identifica sin ambigüedad a las
+> viejas, así que `parseDueDate` las corrige **al leerlas**.
+>
+> Por qué es mejor que el `UPDATE`: es idempotente. Repetirlo mil veces da
+> siempre la misma fecha (verificado), mientras que un UPDATE ejecutado dos
+> veces por error correría las fechas otro día. Y funciona en cualquier huso,
+> incluso si un cobrador abre el CRM desde el extranjero.
+>
+> El SQL de abajo se conserva solo como referencia histórica. **No lo corras.**
+
+<details>
+<summary>SQL original (ya no es necesario)</summary>
+
 
 ```sql
 -- 1. MIRAR primero: cuántas están ancladas de madrugada (síntoma del desfase).
@@ -113,6 +129,8 @@ WHERE due_date IS NOT NULL;
 
 > No corras el UPDATE a ciegas. Si el SELECT muestra las fechas correctas en
 > local, el desfase ya está arreglado y volver a mover las fechas las rompería.
+
+</details>
 
 ---
 

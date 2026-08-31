@@ -63,9 +63,28 @@ export function dayKey(iso: string): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+/** Fecha guardada por el código viejo: medianoche UTC exacta. */
+const MEDIANOCHE_UTC = /^(\d{4})-(\d{2})-(\d{2})T00:00:00(\.000)?Z$/;
+
 function parseDueDate(s: string): Date {
+  // Fecha suelta 'YYYY-MM-DD' (columnas `date` de Postgres).
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+
+  // Cuotas creadas ANTES del arreglo de husos horarios: se guardaron con
+  // `new Date('2026-09-10').toISOString()`, es decir medianoche UTC exacta.
+  // Leerlas en local las corre un día hacia atrás (en Caracas, UTC−4).
+  //
+  // Se reparan aquí, al leer, y no con un UPDATE en la base: las fechas
+  // nuevas se anclan a las 12:00 locales, que nunca caen en medianoche UTC
+  // (mediodía en Caracas son las 16:00Z). Así el patrón identifica sin
+  // ambigüedad las viejas, y ejecutar esto mil veces da siempre lo mismo —
+  // un UPDATE mal repetido, en cambio, correría las fechas otra vez.
+  const viejo = MEDIANOCHE_UTC.exec(s);
+  if (viejo) {
+    return new Date(Number(viejo[1]), Number(viejo[2]) - 1, Number(viejo[3]));
+  }
+
   return new Date(s);
 }
 
