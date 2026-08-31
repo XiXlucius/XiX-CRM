@@ -19,7 +19,7 @@ if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 if exist ".git\config.lock" del /f /q ".git\config.lock" >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Reparar al leer las cuotas viejas con fecha corrida, sin tocar la base de datos" >> "%LOG%" 2>&1
+git commit -m "Arreglar la caida del CRM al abrir la ficha del cliente (error 310 de React)" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

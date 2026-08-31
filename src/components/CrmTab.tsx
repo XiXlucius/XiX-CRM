@@ -34,7 +34,7 @@ import { useStore } from '../store';
 import type { Client, ClientItem, Product, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure, TeamMember } from '../types';
 import { CARACAS_MUNICIPALITIES } from '../data';
 import { printInvoice, printStatement } from '../lib/export';
-import { isOverdue } from '../lib/aging';
+import { isOverdue, parseLocalDate } from '../lib/aging';
 import {
   Card,
   SectionHeader,
@@ -1110,6 +1110,20 @@ function ClientDetailModal({
   const [waTemplate, setWaTemplate] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // La cuota que toca cobrar: la más próxima sin pagar.
+  //
+  // OJO: este `useMemo` va ANTES del `return null` de abajo. Los hooks de React
+  // deben ejecutarse siempre en el mismo orden; si se llaman después de un
+  // return condicional, al cerrar la ficha se rendirizan menos hooks que antes
+  // y React tumba la aplicación entera (error #310). Ya pasó una vez.
+  const proximaCuota = useMemo(
+    () =>
+      [...invoices]
+        .filter((i) => i.status !== 'pagada')
+        .sort((a, b) => parseLocalDate(a.dueDate).getTime() - parseLocalDate(b.dueDate).getTime())[0],
+    [invoices],
+  );
+
   if (!client) return null;
 
   const submitNote = async () => {
@@ -1145,16 +1159,6 @@ function ClientDetailModal({
       setWaSending(false);
     }
   };
-
-  // La cuota que toca cobrar: la más próxima sin pagar. Las vencidas van
-  // primero porque están ordenadas por fecha de vencimiento.
-  const proximaCuota = useMemo(
-    () =>
-      [...invoices]
-        .filter((i) => i.status !== 'pagada')
-        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0],
-    [invoices],
-  );
 
   const totalLateFees = lateFees.reduce((a, f) => a + f.amount, 0);
   const totalPartial = partialPayments.reduce((a, p) => a + p.amount, 0);
