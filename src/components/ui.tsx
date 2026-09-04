@@ -144,7 +144,7 @@ export function Modal({
             /* `dvh` y no `vh`: en el teléfono `vh` mide la pantalla SIN la barra
                de direcciones, así que la hoja se salía por debajo y dejaba un
                hueco negro enorme arriba. `dvh` sigue el alto realmente visible. */
-            className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden ${sizes[size]} card rounded-b-none sm:max-h-[90vh] sm:rounded-b-2xl`}
+            className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden ${sizes[size]} card modal-sheet rounded-b-none sm:max-h-[90vh] sm:rounded-b-2xl`}
           >
             {/* Subtle top gradient line */}
             <div className="absolute top-0 left-6 right-6 h-px z-20 bg-gradient-to-r from-transparent via-accent-500/30 to-transparent" />
@@ -152,7 +152,10 @@ export function Modal({
                 desde abajo, no una ventana rota. Solo en teléfono. */}
             <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-tint/15 sm:hidden" />
             {/* Encabezado sticky: el botón de cerrar siempre queda visible aunque el contenido sea largo */}
-            <div className="z-10 flex shrink-0 items-center justify-between bg-[var(--color-surface)] px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+            {/* El encabezado era un rectángulo OPACO sobre una tarjeta
+                traslúcida: se notaba el corte a media ventana. Ahora comparte
+                el mismo cristal y se separa con una línea, no con un bloque. */}
+            <div className="modal-head z-10 flex shrink-0 items-center justify-between px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
               <h3 className="font-display text-lg font-medium text-metal-100">
                 {title}
               </h3>

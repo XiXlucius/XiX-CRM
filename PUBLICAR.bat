@@ -19,7 +19,7 @@ if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 if exist ".git\config.lock" del /f /q ".git\config.lock" >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Dashboard con datos reales: fuera la curva inventada y los porcentajes fijos" >> "%LOG%" 2>&1
+git commit -m "Luz, sombra y bordes: un solo modelo para todas las cajas y los textos" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 

@@ -1,4 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Quicksand hacía falta y no se estaba descargando: `.chip` la pide desde que
+   se rediseñaron las etiquetas de estado, pero como no entraba en esta lista
+   el navegador caía a Inter sin avisar. Por eso "Activo" / "En mora" se veían
+   con la misma letra que todo lo demás en vez de la redonda que debían tener. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Quicksand:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -61,6 +65,34 @@
   --glow-soft:   0 0 20px -4px color-mix(in srgb, var(--glow-accent) calc(45% * var(--neon)), transparent);
   --glow-strong: 0 0 28px -4px color-mix(in srgb, var(--glow-accent) calc(65% * var(--neon)), transparent);
   --blur-glass:  blur(24px) saturate(160%);
+
+  /* ─────────────────────────────────────────────────────────────
+     MODELO DE LUZ — una sola convención para todas las cajas.
+
+     El problema que resuelve: el neón estaba SOLO en la tipografía
+     (cifras, títulos, chips) mientras las cajas seguían planas, con
+     un filo gris duro y nada más. Texto encendido dentro de cajas
+     apagadas es lo que hacía que nada terminara de encajar.
+
+     La regla: la luz entra desde ARRIBA.
+       · Lo que sobresale  → filo claro arriba, sombra abajo y debajo.
+       · Lo que se hunde   → sombra por dentro y arriba (los campos).
+
+     Así una tarjeta se lee elevada y un campo de texto se lee
+     hundido dentro de ella, sin que haga falta subir el contraste
+     del borde. Antes todo llevaba el mismo filo y todo parecía
+     pegado encima, recortado.
+     ───────────────────────────────────────────────────────────── */
+  --edge-top:    inset 0 1px 0 rgba(255,255,255,0.075);
+  --edge-bottom: inset 0 -1px 0 rgba(0,0,0,0.28);
+  --edge-sunken: inset 0 2px 4px rgba(0,0,0,0.40), inset 0 1px 0 rgba(0,0,0,0.30);
+
+  --elev-1: 0 1px 2px rgba(0,0,0,0.35), 0 8px 24px -10px rgba(0,0,0,0.62);
+  --elev-2: 0 2px 6px rgba(0,0,0,0.45), 0 18px 46px -14px rgba(0,0,0,0.78);
+
+  /* Filo base y filo "iluminado" (el de arriba, que recibe la luz). */
+  --hairline:     color-mix(in srgb, var(--color-neutral-800) 90%, transparent);
+  --hairline-lit: color-mix(in srgb, var(--color-neutral-600) 45%, var(--color-neutral-800));
 }
 
 html, body, #root { height: 100%; }
@@ -76,14 +108,49 @@ body {
 
 h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.015em; }
 
+/* Texto más limpio en pantallas normales: sin esto, sobre fondo oscuro y con
+   halos de color, los bordes de las letras se ven sucios. */
+body, button, input, select, textarea {
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+
 /* Halo en los títulos. El barrido láser (§ 6.5) NO se aplica global: va como
    clase opt-in `.ntNeonBg .ntNeonAnim`, igual que en el prototipo.
    Motivo: aplicarlo a todo h1/h2 obliga a `color: transparent`, y si el
    navegador no pinta el `background-clip: text` el texto queda INVISIBLE. */
-h1, h2, h3, h4 {
+/*
+   El halo se REPARTE por tamaño de título en vez de aplicarse igual a todos.
+   Antes h1, h2, h3 y h4 compartían el mismo desenfoque de 16px + 38px: en un
+   título grande se ve como luz, pero en un h4 de 13px el borroso mide más que
+   la letra y el texto sale sucio y desalineado. Ahora cuanto más pequeño el
+   título, más corto el halo.
+
+   Además va primero una sombra dura y oscura (0 1px 2px). Es la que hace
+   legible el texto sobre el cristal traslúcido: el halo de color solo, sin
+   nada oscuro debajo, baja el contraste en vez de subirlo.
+*/
+h1 {
   text-shadow:
-    0 0 16px color-mix(in srgb, var(--glow-accent) calc(30% * var(--neon)), transparent),
-    0 0 38px color-mix(in srgb, var(--glow-accent) calc(15% * var(--neon)), transparent);
+    0 1px 2px rgba(0,0,0,0.55),
+    0 0 18px color-mix(in srgb, var(--glow-accent) calc(30% * var(--neon)), transparent),
+    0 0 44px color-mix(in srgb, var(--glow-accent) calc(14% * var(--neon)), transparent);
+}
+h2 {
+  text-shadow:
+    0 1px 2px rgba(0,0,0,0.5),
+    0 0 14px color-mix(in srgb, var(--glow-accent) calc(24% * var(--neon)), transparent),
+    0 0 32px color-mix(in srgb, var(--glow-accent) calc(10% * var(--neon)), transparent);
+}
+h3 {
+  text-shadow:
+    0 1px 2px rgba(0,0,0,0.45),
+    0 0 10px color-mix(in srgb, var(--glow-accent) calc(16% * var(--neon)), transparent);
+}
+h4 {
+  text-shadow:
+    0 1px 1px rgba(0,0,0,0.4),
+    0 0 7px color-mix(in srgb, var(--glow-accent) calc(11% * var(--neon)), transparent);
 }
 
 /* Resplandor ambiental + rejilla. Vive DEBAJO de <ParticleField /> (canvas,
@@ -154,8 +221,8 @@ body::before {
 
 /* ── § 6.3 — Pulso del input enfocado ─────────────────────────────────── */
 @keyframes ntTypeGlow {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(150,138,224,0.14); border-color: var(--color-accent); }
-  50%      { box-shadow: 0 0 0 5px rgba(150,138,224,0.30); border-color: var(--color-accent-300); }
+  0%, 100% { box-shadow: var(--edge-sunken), 0 0 0 3px rgba(150,138,224,0.14); border-color: var(--color-accent); }
+  50%      { box-shadow: var(--edge-sunken), 0 0 0 5px rgba(150,138,224,0.30); border-color: var(--color-accent-300); }
 }
 
 /* ── § 6.4 — Glow por volumen en el calendario de cobros ──────────────── */
@@ -249,23 +316,39 @@ body::before {
     background: color-mix(in srgb, var(--color-surface) 78%, transparent);
     backdrop-filter: var(--blur-glass);
     -webkit-backdrop-filter: var(--blur-glass);
-    border: 1px solid var(--color-neutral-800);
+    /* OJO: aquí había un borde de 1px Y un `--shadow-sm` que es
+       `0 0 0 1px #3f424d` — o sea, un segundo anillo del MISMO gris pegado
+       por fuera. Todas las tarjetas llevaban un filo de 2px, plano y sucio;
+       eso es lo que hacía ver los bordes gruesos y mal ajustados. Ahora hay
+       un solo filo, con la parte de arriba más clara porque le da la luz. */
+    border: 1px solid var(--hairline);
+    border-top-color: var(--hairline-lit);
     border-radius: 12px;
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.05) inset,
-      var(--shadow-sm),
-      0 8px 32px -8px rgba(0,0,0,0.65);
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-1);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
   .glass-card:hover {
     border-color: color-mix(in srgb, var(--glow-accent) calc(45% * var(--neon)), var(--color-neutral-700));
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.07) inset,
-      var(--glow-soft),
-      0 16px 48px -12px rgba(0,0,0,0.8);
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-2), var(--glow-soft);
   }
 
   .card { @apply glass-card; }
+
+  /* ── Hoja modal — flota sobre todo lo demás, así que le toca la elevación
+        más alta y un halo de acento que la despega del fondo oscurecido. ── */
+  .modal-sheet {
+    box-shadow:
+      var(--edge-top),
+      var(--edge-bottom),
+      var(--elev-2),
+      0 0 60px -20px color-mix(in srgb, var(--glow-accent) calc(55% * var(--neon)), transparent);
+  }
+  .modal-head {
+    background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-neutral-800) 70%, transparent);
+  }
 
   /* ── Ítem de navegación — la píldora cian pasa a marca de acento ── */
   .nav-item {
@@ -320,13 +403,20 @@ body::before {
     @apply btn;
     background: color-mix(in srgb, var(--color-text) 5%, transparent);
     color: var(--color-neutral-400);
-    border: 1px solid var(--color-neutral-800);
+    border: 1px solid var(--hairline);
+    border-top-color: var(--hairline-lit);
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-1);
   }
   .btn-ghost:hover:not(:disabled) {
     background: color-mix(in srgb, var(--color-text) 8%, transparent);
     color: var(--color-neutral-100);
     border-color: var(--color-neutral-700);
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-2);
   }
+  /* Pulsado: la caja se hunde. Sin esto el botón se encogía pero seguía
+     pareciendo que flotaba, y el clic no se sentía. */
+  .btn-ghost:active:not(:disabled) { box-shadow: var(--edge-sunken); }
+  .btn-primary:active:not(:disabled) { box-shadow: var(--edge-sunken), var(--glow-soft); }
 
   .btn-danger {
     @apply btn;
@@ -342,9 +432,11 @@ body::before {
   /* ── Segmentado — conmutador de modo (login/registro), sin relleno ── */
   .seg {
     display: inline-flex;
-    border: 1px solid var(--color-neutral-800);
+    border: 1px solid var(--hairline);
+    border-top-color: var(--hairline-lit);
     border-radius: 8px;
     overflow: hidden;
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-1);
   }
   .seg-opt {
     flex: 1;
@@ -368,15 +460,24 @@ body::before {
     @apply w-full rounded-lg border px-3.5 py-2.5 text-sm transition-all duration-150 focus:outline-none;
     color: var(--color-text);
     caret-color: var(--color-accent);
-    background: var(--color-surface);
-    border-color: var(--color-neutral-800);
+    /* Un pelo más oscuro que la tarjeta: un campo es un hueco EN la tarjeta,
+       no otra tarjeta encima. Con la sombra interior arriba se lee hundido. */
+    background: color-mix(in srgb, var(--color-bg) 45%, var(--color-surface));
+    border-color: var(--hairline);
+    box-shadow: var(--edge-sunken);
   }
   .input::placeholder { color: var(--color-neutral-600); }
-  .input:hover { border-color: var(--color-neutral-700); }
-  /* § 6.3 — el anillo respira mientras el campo esté activo */
+  .input:hover {
+    border-color: var(--color-neutral-700);
+    box-shadow: var(--edge-sunken);
+  }
+  /* § 6.3 — el anillo respira mientras el campo esté activo.
+     La animación pisa `box-shadow`, así que el hundido va DENTRO de los
+     keyframes (ntTypeGlow); si se dejara solo aquí, al enfocar el campo se
+     aplanaría de golpe. */
   .input:focus, textarea.input:focus {
     border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--glow-accent) 4%, var(--color-surface));
+    background: color-mix(in srgb, var(--glow-accent) 5%, var(--color-surface));
     animation: ntTypeGlow 1.4s ease-in-out infinite;
   }
 
@@ -429,8 +530,12 @@ body::before {
     letter-spacing: 0.01em;
     line-height: 1.5;
     white-space: nowrap;
-    /* El halo usa el propio color del estado: verde en activo, rojo en mora. */
-    text-shadow: 0 0 8px color-mix(in srgb, currentColor calc(55% * var(--neon)), transparent);
+    /* El halo usa el propio color del estado: verde en activo, rojo en mora.
+       Delante va una sombra oscura corta, que es la que separa la letra del
+       relleno de la píldora — con el halo solo, el texto se fundía con él. */
+    text-shadow:
+      0 1px 1px rgba(0,0,0,0.45),
+      0 0 8px color-mix(in srgb, currentColor calc(55% * var(--neon)), transparent);
     box-shadow: 0 0 9px -3px color-mix(in srgb, currentColor calc(70% * var(--neon)), transparent);
     animation: chipNeon 1.6s ease-out 1;
   }
@@ -451,6 +556,12 @@ body::before {
   /* ── Badge — mismo rol semántico, paleta desaturada ── */
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    /* Mismo modelo que las cajas grandes, en miniatura: filo de luz arriba y
+       un halo tenue del propio color de la insignia. */
+    box-shadow:
+      var(--edge-top),
+      0 0 10px -4px color-mix(in srgb, currentColor calc(60% * var(--neon)), transparent);
+    text-shadow: 0 0 8px color-mix(in srgb, currentColor calc(40% * var(--neon)), transparent);
   }
   .badge-cyan    { background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent-300); border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent); }
   .badge-violet  { background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent-300); border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent); }
@@ -479,15 +590,17 @@ body::before {
     background: color-mix(in srgb, var(--color-surface) 80%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--color-neutral-800);
+    border: 1px solid var(--hairline);
+    border-top-color: var(--hairline-lit);
     border-radius: 12px;
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-1);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     cursor: grab;
   }
   .kanban-card:hover {
     border-color: color-mix(in srgb, var(--glow-accent) calc(45% * var(--neon)), var(--color-neutral-700));
     transform: translateY(-2px);
-    box-shadow: var(--glow-soft), 0 12px 32px -10px rgba(0,0,0,0.7);
+    box-shadow: var(--edge-top), var(--edge-bottom), var(--elev-2), var(--glow-soft);
   }
   .kanban-card:active { cursor: grabbing; }
 
@@ -513,9 +626,12 @@ body::before {
     font-family: 'JetBrains Mono', monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+    /* Igual que en los títulos: primero la sombra oscura que da contraste,
+       después el halo. Solo halo hacía que las cifras se vieran lavadas. */
     text-shadow:
-      0 0 14px color-mix(in srgb, var(--glow-accent) calc(35% * var(--neon)), transparent),
-      0 0 34px color-mix(in srgb, var(--glow-accent) calc(16% * var(--neon)), transparent);
+      0 1px 2px rgba(0,0,0,0.5),
+      0 0 14px color-mix(in srgb, var(--glow-accent) calc(32% * var(--neon)), transparent),
+      0 0 34px color-mix(in srgb, var(--glow-accent) calc(14% * var(--neon)), transparent);
   }
 
   /* ── Kicker — encabezado pequeño en mayúsculas ── */
