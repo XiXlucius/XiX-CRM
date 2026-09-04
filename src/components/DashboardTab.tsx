@@ -26,8 +26,12 @@ import { CaracasHeatmap } from './CaracasHeatmap';
 import { Card, SectionHeader, fmtMoney, fmtPct } from './ui';
 import { AnimatedCounter } from './AnimatedCounter';
 import { useCurrentRole } from '../store';
+import { parseLocalDate } from '../lib/aging';
 
-const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+/** Clave "2026-8" para agrupar por mes calendario local. */
+const mesClave = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
 
 export function DashboardTab() {
   const { clients, invoices, team } = useStore();
@@ -67,14 +71,37 @@ export function DashboardTab() {
       .filter((c) => c.status === 'activo' || c.status === 'en_mora')
       .reduce((a, c) => a + c.productCost * (1 - c.downPaymentPct / 100), 0);
     const delinquencyIndex = conCredito ? (delinquent / conCredito) * 100 : 0;
-    const monthlyCollections = scopedInvoices
-      .filter((i) => i.status === 'pagada')
-      .reduce((a, i) => a + i.amount, 0);
+
+    // "Cobranzas del mes" tiene que ser DEL MES. Antes sumaba todas las cuotas
+    // pagadas desde siempre, así que el número solo crecía y no decía nada.
+    const hoy = new Date();
+    const esteMes = mesClave(hoy);
+    const mesPasado = mesClave(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
+    let monthlyCollections = 0;
+    let cobranzaMesPasado = 0;
+    for (const i of scopedInvoices) {
+      if (i.status !== 'pagada' || !i.paidDate) continue;
+      const k = mesClave(parseLocalDate(i.paidDate));
+      if (k === esteMes) monthlyCollections += i.amount;
+      else if (k === mesPasado) cobranzaMesPasado += i.amount;
+    }
+    // Variación contra el mes pasado. Sin mes pasado con cobros no hay
+    // comparación posible: se deja vacío en lugar de inventar una.
+    const variacionCobranzaPct = cobranzaMesPasado
+      ? ((monthlyCollections - cobranzaMesPasado) / cobranzaMesPasado) * 100
+      : null;
+    const variacionCobranza =
+      variacionCobranzaPct === null
+        ? null
+        : `${variacionCobranzaPct >= 0 ? '+' : ''}${variacionCobranzaPct.toFixed(1)}%`;
+
     return {
       conversion,
       activePortfolio,
       delinquencyIndex,
       monthlyCollections,
+      variacionCobranza,
+      variacionCobranzaPct,
       total,
       approved,
       active,
@@ -82,15 +109,37 @@ export function DashboardTab() {
     };
   }, [scopedClients, scopedInvoices]);
 
-  const trendData = useMemo(
-    () =>
-      MONTHS.map((m, i) => ({
-        month: m,
-        cartera: Math.round(kpis.activePortfolio * (0.7 + i * 0.06)),
-        cobranza: Math.round(kpis.monthlyCollections * (0.6 + i * 0.08)),
-      })),
-    [kpis],
-  );
+  /**
+   * Los últimos 6 meses, con datos REALES de las cuotas:
+   *
+   *  - programado: lo que vencía ese mes (por `dueDate`).
+   *  - cobrado: lo que efectivamente se cobró ese mes (por `paidDate`).
+   *
+   * Antes esta serie era inventada: tomaba el total actual y lo multiplicaba
+   * por factores fijos (0.7, 0.76, 0.82...) para dibujar una curva que siempre
+   * subía. Se veía como una tendencia y no lo era.
+   */
+  const trendData = useMemo(() => {
+    const hoy = new Date();
+    const meses = Array.from({ length: 6 }, (_, k) => {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - (5 - k), 1);
+      return { key: mesClave(d), month: MONTHS[d.getMonth()], programado: 0, cobrado: 0 };
+    });
+    const indice = new Map(meses.map((m, i) => [m.key, i]));
+    for (const inv of scopedInvoices) {
+      const iProg = indice.get(mesClave(parseLocalDate(inv.dueDate)));
+      if (iProg !== undefined) meses[iProg].programado += inv.amount;
+      if (inv.status === 'pagada' && inv.paidDate) {
+        const iCob = indice.get(mesClave(parseLocalDate(inv.paidDate)));
+        if (iCob !== undefined) meses[iCob].cobrado += inv.amount;
+      }
+    }
+    return meses.map((m) => ({
+      month: m.month,
+      programado: Math.round(m.programado),
+      cobrado: Math.round(m.cobrado),
+    }));
+  }, [scopedInvoices]);
 
   const statusBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -156,8 +205,6 @@ export function DashboardTab() {
           decimals={1}
           suffix="%"
           icon={<TrendingUp size={18} />}
-          delta="+3.2%"
-          deltaUp
           accent="from-accent-500/20 to-accent-500/5"
           iconColor="text-accent-300"
         />
@@ -166,8 +213,6 @@ export function DashboardTab() {
           value={kpis.activePortfolio}
           prefix="$"
           icon={<Wallet size={18} />}
-          delta="+$8.4k"
-          deltaUp
           accent="from-violet-500/20 to-violet-500/5"
           iconColor="text-violet-400"
         />
@@ -177,8 +222,6 @@ export function DashboardTab() {
           decimals={1}
           suffix="%"
           icon={<AlertTriangle size={18} />}
-          delta="-1.1%"
-          deltaUp={false}
           goodDown
           accent="from-warning/20 to-warning/5"
           iconColor="text-warning-400"
@@ -188,8 +231,8 @@ export function DashboardTab() {
           value={kpis.monthlyCollections}
           prefix="$"
           icon={<Banknote size={18} />}
-          delta="+12.5%"
-          deltaUp
+          delta={kpis.variacionCobranza ?? undefined}
+          deltaUp={(kpis.variacionCobranzaPct ?? 0) >= 0}
           accent="from-success/20 to-success/5"
           iconColor="text-success-500"
         />
@@ -202,7 +245,7 @@ export function DashboardTab() {
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
         <Card className="p-4 sm:p-5">
           <SectionHeader
-            title="Evolución de cartera y cobranza"
+            title="Lo que tocaba cobrar vs. lo cobrado"
             subtitle="Últimos 6 meses · valores en USD"
             icon={<Activity size={16} />}
           />
@@ -233,16 +276,16 @@ export function DashboardTab() {
                 />
                 <Area
                   type="monotone"
-                  dataKey="cartera"
-                  name="Cartera"
+                  dataKey="programado"
+                  name="Programado"
                   stroke="#b5abfc"
                   strokeWidth={2}
                   fill="url(#gCartera)"
                 />
                 <Area
                   type="monotone"
-                  dataKey="cobranza"
-                  name="Cobranza"
+                  dataKey="cobrado"
+                  name="Cobrado"
                   stroke="#86b298"
                   strokeWidth={2}
                   fill="url(#gCobranza)"
@@ -364,8 +407,8 @@ function KpiCard({
   suffix?: string;
   decimals?: number;
   icon: React.ReactNode;
-  delta: string;
-  deltaUp: boolean;
+  delta?: string;
+  deltaUp?: boolean;
   goodDown?: boolean;
   accent: string;
   iconColor: string;
@@ -381,16 +424,20 @@ function KpiCard({
         <div className={`grid h-10 w-10 place-items-center rounded-xl bg-ink-900/40 ${iconColor}`}>
           {icon}
         </div>
-        <span
-          className={`chip ${
-            positive
-              ? 'bg-success/15 text-success-500'
-              : 'bg-danger/15 text-danger-400'
-          }`}
-        >
-          {deltaUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-          {delta}
-        </span>
+        {/* Sin variación calculable no se dibuja nada. Antes iba un porcentaje
+            fijo escrito a mano ("+3.2%"), que parecía una tendencia real. */}
+        {delta && (
+          <span
+            className={`chip ${
+              positive
+                ? 'bg-success/15 text-success-500'
+                : 'bg-danger/15 text-danger-400'
+            }`}
+          >
+            {deltaUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+            {delta}
+          </span>
+        )}
       </div>
       <p className="mt-4 text-xs uppercase tracking-wider text-slate-400">{label}</p>
       <p className="mt-1 font-display text-2xl font-medium text-metal-100">
