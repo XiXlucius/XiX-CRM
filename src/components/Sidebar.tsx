@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Users, GraduationCap, MessageSquare, UsersRound,
-  ReceiptText, Boxes, Settings, FileBarChart, History, Route,
+  ReceiptText, Boxes, Settings, FileBarChart, History, Route, Archive,
   ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +15,7 @@ export type NavTab = Permission;
 const ICONS: Record<string, typeof LayoutDashboard> = {
   LayoutDashboard,
   Users,
+  Archive,
   GraduationCap,
   MessageSquare,
   UsersRound,

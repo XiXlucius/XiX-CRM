@@ -29,12 +29,13 @@ import {
   AlertCircle,
   Navigation,
   Printer,
+  Archive,
 } from 'lucide-react';
 import { useStore } from '../store';
 import type { Client, ClientItem, Product, ClientStatus, PaymentFrequency, Municipality, ClientDocument, MessageTemplate, PartialPayment, Renegotiation, EmploymentTenure, TeamMember } from '../types';
 import { CARACAS_MUNICIPALITIES } from '../data';
 import { printInvoice, printStatement } from '../lib/export';
-import { isOverdue, parseLocalDate } from '../lib/aging';
+import { isOverdue, parseLocalDate, isSettled, isSettledFrom, settlementSummary } from '../lib/aging';
 import {
   Card,
   SectionHeader,
@@ -80,7 +81,13 @@ const STATUSES: ClientStatus[] = [
   'rechazado',
 ];
 
-export function CrmTab({ initialClientId }: { initialClientId?: string | null }) {
+/**
+ * `soloPagados` reutiliza esta misma pantalla para la sección "Clientes
+ * pagados": mismo buscador, mismas tarjetas y la MISMA ficha con todo el
+ * historial. Se prefirió esto a escribir una pantalla aparte porque una copia
+ * se habría quedado atrás en cuanto la ficha cambie.
+ */
+export function CrmTab({ initialClientId, soloPagados = false }: { initialClientId?: string | null; soloPagados?: boolean }) {
   const { clients, invoices, team, products, markInvoicePaid, addClient, updateClient, addBitacora, generateSchedule, settings, documents, templates, partialPayments, renegotiations, lateFees, sendWhatsApp, uploadDocument, deleteDocument, addPartialPayment, addRenegotiation, applyLateFees } = useStore();
   const toast = useToast();
   const [view, setView] = useState<'grid' | 'list' | 'map'>('grid');
@@ -151,8 +158,18 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
     return ['all', ...Array.from(set)];
   }, [clients]);
 
+  /** Clientes que ya pagaron todo. Se calcula una vez y sirve para las dos
+   *  pantallas: el CRM los esconde y "Clientes pagados" solo muestra estos. */
+  const saldados = useMemo(
+    () => new Set(clients.filter((c) => isSettled(c.id, invoices)).map((c) => c.id)),
+    [clients, invoices],
+  );
+
   const filtered = useMemo(() => {
     return clients.filter((c) => {
+      // La lista principal es la cartera VIVA: en cuanto alguien termina de
+      // pagar deja de aparecer aquí y pasa a "Clientes pagados".
+      if (saldados.has(c.id) !== soloPagados) return false;
       const q = query.toLowerCase();
       const matches =
         !q ||
@@ -163,15 +180,20 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
       const agent = agentFilter === 'all' || c.assignedAgent === agentFilter;
       return matches && status && agent;
     });
-  }, [clients, query, statusFilter, agentFilter]);
+  }, [clients, query, statusFilter, agentFilter, saldados, soloPagados]);
 
   return (
     <div data-tour="crm" className="space-y-5">
       <SectionHeader
-        title="CRM · Clientes a crédito"
-        subtitle={`${clients.length} clientes en cartera`}
-        icon={<Users size={16} />}
+        title={soloPagados ? 'Clientes pagados' : 'CRM · Clientes a crédito'}
+        subtitle={
+          soloPagados
+            ? `${saldados.size} créditos saldados`
+            : `${clients.length - saldados.size} clientes con deuda activa`
+        }
+        icon={soloPagados ? <Archive size={16} /> : <Users size={16} />}
         action={
+          soloPagados ? null : (
           <div className="flex items-center gap-2">
             <button onClick={() => setTemplatesOpen(true)} className="btn-outline">
               <MessageSquare size={15} /> <span className="hidden sm:inline">Plantillas</span>
@@ -183,6 +205,7 @@ export function CrmTab({ initialClientId }: { initialClientId?: string | null })
               <Plus size={15} /> <span className="hidden sm:inline">Nuevo cliente</span>
             </button>
           </div>
+          )
         }
       />
 
@@ -1143,6 +1166,12 @@ function ClientDetailModal({
   const canGenerate =
     sinCuotas && client.status !== 'rechazado';
 
+  /** Lo que ya pagó, para el resumen del crédito saldado. */
+  const resumenPago = settlementSummary(invoices);
+  /** MISMA regla que usa la lista para archivar. Si aquí se usara otra, la
+   *  ficha podría cantar "saldado" mientras el CRM lo sigue mostrando activo. */
+  const saldado = isSettledFrom(invoices);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !client) return;
@@ -1231,12 +1260,52 @@ function ClientDetailModal({
           </div>
         )}
 
-        {/* Sin esto, un cliente con todo pagado mostraba un hueco en blanco y
-            parecía que el botón de cobrar se había perdido. */}
-        {!sinCuotas && !proximaCuota && (
-          <div className="rounded-xl border border-success-500/25 bg-success/5 p-3 flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-success-400" />
-            <p className="text-sm text-metal-100">Todas las cuotas están pagadas.</p>
+        {/* Crédito saldado: queda en 0 y se resume lo que pagó. Sin esto, un
+            cliente con todo pagado mostraba un hueco en blanco y parecía que el
+            botón de cobrar se había perdido. */}
+        {saldado && (
+          <div className="rounded-xl border border-success-500/25 bg-success/5 p-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-success-400" />
+              <p className="text-sm font-medium text-metal-100">Crédito saldado · saldo $0</p>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-2xs uppercase tracking-wider text-slate-500">Total pagado</p>
+                <p className="num text-lg text-metal-100">{fmtMoney(resumenPago.total)}</p>
+              </div>
+              <div>
+                <p className="text-2xs uppercase tracking-wider text-slate-500">Cuotas</p>
+                <p className="num text-lg text-metal-100">{resumenPago.cuotas}</p>
+              </div>
+              <div>
+                <p className="text-2xs uppercase tracking-wider text-slate-500">Terminó</p>
+                <p className="text-sm text-metal-100">
+                  {resumenPago.ultimoPago ? fmtDate(resumenPago.ultimoPago) : '—'}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Este cliente ya no aparece en CRM Clientes: está archivado en «Clientes pagados».
+              El detalle cuota por cuota queda en la pestaña Amortización.
+            </p>
+          </div>
+        )}
+
+        {/* Todas las cuotas que se ven están pagadas, pero no llegan al total
+            que declara el plan. Ni saldado ni cobrable: hay que avisarlo en vez
+            de dejar la ficha en blanco. */}
+        {!sinCuotas && !proximaCuota && !saldado && (
+          <div className="rounded-xl border border-warn-500/30 bg-warn/5 p-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="text-warn-400" />
+              <p className="text-sm font-medium text-metal-100">Plan de cuotas incompleto</p>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Están pagadas las {invoices.length} cuotas que tiene cargadas, pero el plan
+              dice tener más. Por eso no se da por saldado ni se archiva. Revisa el
+              cronograma en Facturación.
+            </p>
           </div>
         )}
 

@@ -360,6 +360,7 @@ export interface AuditEntry {
 export type Permission =
   | 'dashboard'
   | 'crm'
+  | 'pagados'
   | 'courses'
   | 'playbook'
   | 'equipo'

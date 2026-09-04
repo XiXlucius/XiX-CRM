@@ -96,6 +96,10 @@ function AppShell() {
             <div key={`${activeTab}-${displayCurrency}`} className="ntInR">
             {activeTab === 'dashboard'  && <DashboardTab />}
             {activeTab === 'crm'        && <CrmTab initialClientId={crmInitialClient} />}
+            {/* Misma pantalla, pero filtrando los créditos ya saldados. La
+                `key` fuerza a React a montarla de cero al cambiar de sección:
+                si no, se quedaría el buscador y los filtros de la otra. */}
+            {activeTab === 'pagados'    && <CrmTab key="pagados" soloPagados />}
             {activeTab === 'courses'    && (
               <Suspense fallback={<div className="grid place-items-center py-20"><Loader2 size={22} className="text-accent animate-spin" /></div>}>
                 <CursoTab />

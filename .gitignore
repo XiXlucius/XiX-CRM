@@ -21,3 +21,6 @@ pnpm-debug.log*
 tsconfig.tsbuildinfo
 yarn-debug.log*
 yarn-error.log*
+
+# Script de prueba temporal (no forma parte del proyecto)
+t.mjs

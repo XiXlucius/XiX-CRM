@@ -33,6 +33,7 @@ export const ROLES: RoleProfile[] = [
     permissions: [
       'dashboard',
       'crm',
+      'pagados',
       'courses',
       'playbook',
       'equipo',
@@ -51,7 +52,7 @@ export const ROLES: RoleProfile[] = [
     description: 'Supervisa equipos, comisiones y cartera global.',
     initials: 'GE',
     color: 'from-accent-500 to-violet-500',
-    permissions: ['dashboard', 'crm', 'equipo', 'facturacion', 'inventario', 'reportes', 'ruta'],
+    permissions: ['dashboard', 'crm', 'pagados', 'equipo', 'facturacion', 'inventario', 'reportes', 'ruta'],
   },
   {
     id: 'supervisor',
@@ -60,7 +61,7 @@ export const ROLES: RoleProfile[] = [
     description: 'Acompaña vendedores, revisa mora y bitácoras.',
     initials: 'SU',
     color: 'from-accent-500 to-violet-500',
-    permissions: ['dashboard', 'crm', 'facturacion', 'playbook', 'auditoria'],
+    permissions: ['dashboard', 'crm', 'pagados', 'facturacion', 'playbook', 'auditoria'],
   },
   {
     id: 'vendedor',
@@ -69,13 +70,16 @@ export const ROLES: RoleProfile[] = [
     description: 'Registro de clientes, cursos y manejo de objeciones.',
     initials: 'VE',
     color: 'from-accent-500 to-violet-500',
-    permissions: ['dashboard', 'crm', 'courses', 'playbook', 'facturacion', 'ruta'],
+    permissions: ['dashboard', 'crm', 'pagados', 'courses', 'playbook', 'facturacion', 'ruta'],
   },
 ];
 
 export const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard', description: 'KPIs y mapa de Caracas' },
   { id: 'crm', label: 'CRM Clientes', icon: 'Users', description: 'Cartera y solicitudes a crédito' },
+  // Los que ya terminaron de pagar salen de la lista principal y quedan aquí,
+  // con su ficha y su historial completos. Va justo debajo del CRM a propósito.
+  { id: 'pagados', label: 'Clientes pagados', icon: 'Archive', description: 'Créditos saldados y su historial' },
   { id: 'courses', label: 'Academia', icon: 'GraduationCap', description: 'Cursos y certificaciones' },
   { id: 'playbook', label: 'Playbook', icon: 'MessageSquare', description: 'Manejo de objeciones R.E.S.' },
   { id: 'equipo', label: 'Equipo', icon: 'UsersRound', description: 'Miembros y comisiones' },

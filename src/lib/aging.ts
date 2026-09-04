@@ -123,6 +123,69 @@ export function invoiceBalance(
 }
 
 /**
+ * Un cliente está SALDADO cuando terminó de pagar TODO su plan. Se calcula, no
+ * se guarda — así no hay una columna que se pueda desincronizar si alguien
+ * corrige una cuota más adelante.
+ *
+ * Hacen falta las dos condiciones:
+ *
+ *  1. Ninguna cuota suya quedó sin pagar.
+ *  2. Las cuotas pagadas llegan al total que declara el propio plan
+ *     (`totalInstallments`).
+ *
+ * La segunda es la importante y se agregó porque sin ella el archivado se
+ * disparaba antes de tiempo: si por lo que sea el navegador solo tenía a la
+ * vista una parte del plan (cuotas que no cargaron, o un plan que se creó a
+ * medias), "todas pagadas" era cierto sobre un pedazo y el cliente se archivaba
+ * debiendo. Comparando contra el tamaño que el plan dice tener, un plan
+ * incompleto NUNCA cuenta como saldado: en la duda se queda en la cartera
+ * activa, que es el lado seguro del error — es peor perder de vista a alguien
+ * que debe, que ver un momento de más a alguien que ya pagó.
+ *
+ * Un cliente sin cuotas tampoco está saldado: no debe nada porque nunca se le
+ * generó el plan, que es un caso distinto y se atiende en su ficha.
+ */
+export function isSettledFrom(
+  propias: { status: string; isDownPayment: boolean; totalInstallments: number }[],
+): boolean {
+  let pagadas = 0;
+  let tamanoDelPlan = 0;
+  for (const i of propias) {
+    if (i.status !== 'pagada') return false;
+    // La inicial va aparte del plan de cuotas y no cuenta para el total.
+    if (i.isDownPayment) continue;
+    pagadas += 1;
+    tamanoDelPlan = Math.max(tamanoDelPlan, i.totalInstallments ?? 0);
+  }
+  return tamanoDelPlan > 0 && pagadas >= tamanoDelPlan;
+}
+
+/** La misma regla, buscando las cuotas del cliente dentro de la lista completa. */
+export function isSettled(
+  clientId: string,
+  invoices: Pick<Invoice, 'clientId' | 'status' | 'isDownPayment' | 'totalInstallments'>[],
+): boolean {
+  return isSettledFrom(invoices.filter((i) => i.clientId === clientId));
+}
+
+/** Cuánto pagó en total y cuándo terminó. Recibe las cuotas YA filtradas por
+ *  cliente, que es como las tiene la ficha. */
+export function settlementSummary(
+  invoices: { status: string; amount: number; paidDate: string | null }[],
+): { total: number; cuotas: number; ultimoPago: string | null } {
+  let total = 0;
+  let cuotas = 0;
+  let ultimoPago: string | null = null;
+  for (const i of invoices) {
+    if (i.status !== 'pagada') continue;
+    total += i.amount;
+    cuotas += 1;
+    if (i.paidDate && (!ultimoPago || i.paidDate > ultimoPago)) ultimoPago = i.paidDate;
+  }
+  return { total, cuotas, ultimoPago };
+}
+
+/**
  * Estado del CLIENTE, también derivado.
  *
  * Un cliente con alguna factura vencida se considera en mora, sin que nadie

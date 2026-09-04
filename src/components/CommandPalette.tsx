@@ -89,6 +89,7 @@ export function CommandPalette({ onNavigate, onSelectClient }: { onNavigate: (p:
     const navResults: SearchResult[] = [
       { id: 'nav-dashboard', label: 'Dashboard', sub: 'KPIs y mapa', icon: <Search size={15} />, category: 'Navegación', action: () => { onNavigate('dashboard'); setOpen(false); } },
       { id: 'nav-crm', label: 'CRM Clientes', sub: 'Cartera y solicitudes', icon: <Users size={15} />, category: 'Navegación', action: () => { onNavigate('crm'); setOpen(false); } },
+      { id: 'nav-pagados', label: 'Clientes pagados', sub: 'Créditos saldados', icon: <Users size={15} />, category: 'Navegación', action: () => { onNavigate('pagados'); setOpen(false); } },
       { id: 'nav-facturacion', label: 'Facturación', sub: 'Cobranzas', icon: <ReceiptText size={15} />, category: 'Navegación', action: () => { onNavigate('facturacion'); setOpen(false); } },
       { id: 'nav-inventario', label: 'Inventario', sub: 'Catálogo y rotación', icon: <Boxes size={15} />, category: 'Navegación', action: () => { onNavigate('inventario'); setOpen(false); } },
     ].filter((r) => !q || r.label.toLowerCase().includes(q));

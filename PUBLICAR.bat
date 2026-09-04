@@ -19,7 +19,7 @@ if exist ".git\HEAD.lock"  del /f /q ".git\HEAD.lock"  >nul 2>&1
 if exist ".git\config.lock" del /f /q ".git\config.lock" >nul 2>&1
 
 git add -A >> "%LOG%" 2>&1
-git commit -m "Poder generar cuotas y cobrar a clientes activos que se quedaron sin plan de pagos" >> "%LOG%" 2>&1
+git commit -m "No archivar a quien todavia debe: exigir el plan de cuotas completo" >> "%LOG%" 2>&1
 git push >> "%LOG%" 2>&1
 set "CODIGO=%errorlevel%"
 
